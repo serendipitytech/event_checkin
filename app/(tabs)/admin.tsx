@@ -17,6 +17,8 @@ import { useSupabase } from '../../hooks/useSupabase';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useRealtimeConnection } from '../../hooks/useRealtime';
 import { describeRole, normalizeRole } from '../../services/permissions';
+import { RosterImportModal } from '../../components/RosterImportModal';
+import type { ImportResult } from '../../services/rosterImport';
 
 const AUTO_REFRESH_OPTIONS = [
   { label: 'Off', value: 0 },
@@ -47,6 +49,7 @@ export default function AdminScreen() {
   const [autoRefreshInterval, setAutoRefreshIntervalState] = useState<number>(
     getAutoRefreshInterval()
   );
+  const [importModalVisible, setImportModalVisible] = useState(false);
 
   useEffect(() => {
     const remove = addAutoRefreshListener((interval) => {
@@ -95,11 +98,23 @@ export default function AdminScreen() {
       return;
     }
 
-    Alert.alert(
-      'Roster Import',
-      'File import for CSV/XLSX will live here. Decide on the preferred mobile picker workflow before enabling this action.'
-    );
-    importAttendeesFromFile('FILE_URI_PLACEHOLDER');
+    if (!selectedEvent) {
+      Alert.alert('No Event Selected', 'Please select an event before importing attendees.');
+      return;
+    }
+
+    setImportModalVisible(true);
+  };
+
+  const handleImportSuccess = (result: ImportResult) => {
+    if (result.success) {
+      Alert.alert(
+        'Import Successful',
+        `Successfully imported ${result.imported} attendees.${result.skipped > 0 ? ` ${result.skipped} rows were skipped.` : ''}`,
+        [{ text: 'OK' }]
+      );
+      emitRefreshAttendees({ silent: true });
+    }
   };
 
   const handleSyncSheet = () => {
@@ -108,11 +123,12 @@ export default function AdminScreen() {
       return;
     }
 
-    Alert.alert(
-      'Google Sheet Sync',
-      'Google Sheet sync will route through the proxy once implemented.'
-    );
-    syncFromGoogleSheet('GOOGLE_SHEET_URL_PLACEHOLDER');
+    if (!selectedEvent) {
+      Alert.alert('No Event Selected', 'Please select an event before syncing Google Sheets.');
+      return;
+    }
+
+    setImportModalVisible(true);
   };
 
   const handleSelectAutoRefresh = (interval: number) => {
@@ -385,6 +401,13 @@ export default function AdminScreen() {
           {'\n'}- Add role-based UI components and permissions.
         </Text>
       </View>
+
+      <RosterImportModal
+        visible={importModalVisible}
+        eventId={selectedEvent?.eventId || ''}
+        onClose={() => setImportModalVisible(false)}
+        onSuccess={handleImportSuccess}
+      />
     </ScrollView>
   );
 }

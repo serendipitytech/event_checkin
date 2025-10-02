@@ -182,12 +182,20 @@ export const bulkCheckInByTable = async (
   return (data as number) ?? 0;
 };
 
-export const importAttendeesFromFile = async (fileUri: string): Promise<void> => {
-  // TODO: Wire up CSV/XLSX import using Expo file system + Supabase upsert.
-  console.info(`importAttendeesFromFile stub invoked for file=${fileUri}`);
+export const importAttendeesFromFile = async (
+  fileUri: string, 
+  eventId: string,
+  options?: { skipFirstRow?: boolean; columnMapping?: any }
+): Promise<{ success: boolean; imported: number; errors: string[]; skipped: number }> => {
+  const { importAttendeesFromCSV } = await import('./rosterImport');
+  return importAttendeesFromCSV(fileUri, { eventId, ...options });
 };
 
-export const syncFromGoogleSheet = async (sheetUrl: string): Promise<void> => {
-  // TODO: Feed Google Sheet CSV through proxy and update Supabase.
-  console.info(`syncFromGoogleSheet stub invoked for url=${sheetUrl}`);
+export const syncFromGoogleSheet = async (
+  sheetUrl: string, 
+  eventId: string,
+  options?: { skipFirstRow?: boolean; columnMapping?: any }
+): Promise<{ success: boolean; imported: number; errors: string[]; skipped: number }> => {
+  const { importAttendeesFromGoogleSheet } = await import('./rosterImport');
+  return importAttendeesFromGoogleSheet(sheetUrl, { eventId, ...options });
 };
