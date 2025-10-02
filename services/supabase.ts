@@ -22,3 +22,8 @@ export const getSupabaseClient = (): SupabaseClient => {
 
   return client;
 };
+
+// Function to clear the cached client (useful for testing or config changes)
+export const clearSupabaseClient = (): void => {
+  client = null;
+};

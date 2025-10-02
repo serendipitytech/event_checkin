@@ -1,12 +1,15 @@
 import { Alert } from 'react-native';
 import * as ExpoLinking from 'expo-linking';
+import Constants from 'expo-constants';
 import { getSupabaseClient } from './supabase';
 import { REDIRECT_URL, DEEP_LINK_SCHEME, getDebugInfo } from '../config/env';
+import { testAuthUrlGeneration, debugSupabaseConfig } from '../utils/testAuth';
 
 export const launchMagicLinkSignIn = async (): Promise<void> => {
   const supabase = getSupabaseClient();
   
   // Get the dynamic redirect URL using Expo's Linking.createURL
+  // This MUST be called fresh each time to get the current tunnel URL
   const redirectTo = ExpoLinking.createURL('/auth/callback');
   
   // Log debug information in development
@@ -15,7 +18,17 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
     console.log('Auth Debug Info:', debugInfo);
   }
   
-  console.log('Magic link redirect URL:', redirectTo);
+  console.log('=== MAGIC LINK DEBUG ===');
+  console.log('Generated redirect URL:', redirectTo);
+  console.log('Current Expo Constants:', {
+    expoGo: Constants.appOwnership === 'expo',
+    isDev: __DEV__,
+    linkingUrl: ExpoLinking.createURL('/auth/callback')
+  });
+  
+  // Run comprehensive debugging
+  testAuthUrlGeneration();
+  debugSupabaseConfig();
   
   // For now, we'll use a simple email prompt
   // In a production app, you might want a more sophisticated UI
@@ -38,6 +51,7 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
           try {
             console.log('Sending magic link to:', email.trim());
             console.log('Using redirect URL:', redirectTo);
+            console.log('Supabase URL:', supabase.supabaseUrl);
             
             const { error } = await supabase.auth.signInWithOtp({
               email: email.trim(),
