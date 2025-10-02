@@ -1,32 +1,57 @@
 # Supabase Dashboard Configuration for Expo Magic Links
 
-## Critical Configuration Steps
+## 🚨 CRITICAL: Fix Magic Link Redirect Issue
 
-To fix the magic link redirect issue, you need to configure your Supabase dashboard correctly.
+If your magic links are redirecting to `https://efcgzxjwystresjbcezc.supabase.co` instead of your Expo app, follow these exact steps.
 
 ### 1. Authentication Settings
 
 Go to: **Supabase Dashboard** → **Your Project** → **Authentication** → **URL Configuration**
 
 #### Site URL
-- **Set to**: `https://your-project-id.supabase.co`
-- **Why**: This is required by Supabase but not used by Expo
-- **Example**: `https://efcgzxjwystresjbcezc.supabase.co`
+- **Set to**: `https://efcgzxjwystresjbcezc.supabase.co`
+- **Why**: Required by Supabase but not used by Expo for redirects
 
 #### Redirect URLs
-Add these URLs to the **Redirect URLs** list:
+**Copy and paste these EXACT URLs** into your **Redirect URLs** list:
 
 ```
-exp://127.0.0.1:8081/auth/callback
-exp://*.exp.direct/auth/callback
+exp://127.0.0.1:8081/--/auth/callback
+exp://*.exp.direct/--/auth/callback
 expo-checkin://auth/callback
 ```
 
-**Important**: 
-- Use wildcards (`*`) for the exp.direct URLs to catch all tunnel variations
-- **Remove** any `http://localhost:3000` URLs if they exist
+**CRITICAL NOTES**: 
+- ✅ **Include** the `--` path segment (this is required by Expo Go)
+- ✅ **Use wildcards** (`*`) for exp.direct URLs to catch all tunnel variations
+- ❌ **Remove** any `http://localhost:3000` URLs if they exist
+- ❌ **Remove** any URLs without the `--` path segment
+
+#### Expected URL Formats
+
+**Development (Expo Go with tunnel):**
+```
+exp://u3m58lo-serendipitytech-8081.exp.direct/--/auth/callback
+```
+
+**Development (Expo Go local):**
+```
+exp://127.0.0.1:8081/--/auth/callback
+```
+
+**Production (Custom scheme):**
+```
+expo-checkin://auth/callback
+```
 
 ### 2. Common Issues and Fixes
+
+#### Issue: Magic link redirects to Supabase domain instead of app
+**Cause**: Missing `--` path segment in redirect URLs or incorrect URL format
+**Fix**: 
+1. Add `exp://*.exp.direct/--/auth/callback` to redirect URLs
+2. Ensure all Expo URLs include the `--` path segment
+3. Remove any URLs without the `--` segment
 
 #### Issue: Magic link still uses localhost
 **Cause**: Site URL is set to localhost or localhost is in redirect URLs
@@ -40,7 +65,14 @@ expo-checkin://auth/callback
 **Fix**: 
 1. Check console logs for the generated URL
 2. Add the exact URL to your redirect URLs list
-3. Use wildcards for tunnel URLs: `exp://*.exp.direct/auth/callback`
+3. Use wildcards for tunnel URLs: `exp://*.exp.direct/--/auth/callback`
+
+#### Issue: Deep link doesn't open app
+**Cause**: Missing `--` path segment in the generated URL
+**Fix**: 
+1. Verify console shows URL with `--` segment
+2. Update Supabase redirect URLs to include `--` segment
+3. Test with fresh magic link
 
 ### 3. Testing Your Configuration
 
@@ -51,11 +83,17 @@ expo-checkin://auth/callback
 
 2. **Check console logs** when testing magic link:
    ```
-   Generated URL: exp://u3m58lo-serendipitytech-8081.exp.direct/auth/callback
+   Generated URL: exp://u3m58lo-serendipitytech-8081.exp.direct/--/auth/callback
    ✅ TUNNEL URL DETECTED - This will work on physical devices
    ```
 
-3. **Verify the magic link email** contains the tunnel URL, not localhost
+3. **Verify the magic link email** contains the tunnel URL with `--` segment, not localhost or supabase.co
+
+4. **Test the complete flow**:
+   - Click magic link in email
+   - Should open Expo Go app (not Safari)
+   - Should complete authentication
+   - Should show success message
 
 ### 4. Production Configuration
 

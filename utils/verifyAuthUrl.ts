@@ -13,16 +13,25 @@ export const verifyAuthUrl = (): string => {
   console.log('Environment:', __DEV__ ? 'Development' : 'Production');
   console.log('App Ownership:', Constants.appOwnership);
   console.log('Expo Go:', Constants.appOwnership === 'expo');
+  console.log('Full Constants:', {
+    scheme: Constants.expoConfig?.scheme,
+    linkingUri: Constants.linkingUri,
+    expoGo: Constants.appOwnership === 'expo'
+  });
   
   // Check URL format
   if (generatedUrl.includes('.exp.direct')) {
     console.log('✅ TUNNEL URL DETECTED - This will work on physical devices');
+    console.log('Expected format: exp://xxx-xxx-xxx.exp.direct/--/auth/callback');
   } else if (generatedUrl.includes('127.0.0.1')) {
     console.log('⚠️  LOCALHOST URL - This will only work on localhost/simulator');
+    console.log('Expected format: exp://127.0.0.1:8081/--/auth/callback');
   } else if (generatedUrl.includes('expo-checkin')) {
     console.log('✅ CUSTOM SCHEME URL - This is for production builds');
+    console.log('Expected format: expo-checkin://auth/callback');
   } else {
     console.log('❓ UNKNOWN URL FORMAT - Unexpected result');
+    console.log('This might cause Supabase to redirect to its own domain!');
   }
   
   return generatedUrl;

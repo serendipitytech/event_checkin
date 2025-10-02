@@ -7,11 +7,24 @@ import { verifyAuthUrl, getAuthRedirectUrl } from '../utils/verifyAuthUrl';
 export const launchMagicLinkSignIn = async (): Promise<void> => {
   const supabase = getSupabaseClient();
   
-  // Get the current auth redirect URL - this handles tunnel URLs automatically
+  // CRITICAL: Get the current auth redirect URL - this handles tunnel URLs automatically
+  // This MUST generate exp://xxx.exp.direct/--/auth/callback format in development
   const redirectTo = getAuthRedirectUrl();
   
   // Verify the URL generation is working correctly
-  verifyAuthUrl();
+  const verifiedUrl = verifyAuthUrl();
+  
+  // Ensure we're not falling back to Supabase domain
+  if (verifiedUrl.includes('supabase.co')) {
+    console.error('❌ CRITICAL ERROR: Generated URL contains supabase.co domain!');
+    console.error('This will cause Supabase to redirect to its own domain instead of your app!');
+    console.error('Check your Supabase dashboard redirect URLs configuration.');
+    Alert.alert(
+      'Configuration Error',
+      'The redirect URL is incorrectly configured. Please check the console for details.'
+    );
+    return;
+  }
   
   // For now, we'll use a simple email prompt
   // In a production app, you might want a more sophisticated UI
@@ -32,10 +45,17 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
           }
 
           try {
-            console.log('Sending magic link to:', email.trim());
-            console.log('Using redirect URL:', redirectTo);
+            console.log('=== SENDING MAGIC LINK ===');
+            console.log('Email:', email.trim());
+            console.log('Redirect URL:', redirectTo);
+            console.log('URL format check:');
+            console.log('- Contains exp.direct:', redirectTo.includes('.exp.direct'));
+            console.log('- Contains localhost:', redirectTo.includes('localhost'));
+            console.log('- Contains supabase.co:', redirectTo.includes('supabase.co'));
+            console.log('- Contains expo-checkin:', redirectTo.includes('expo-checkin'));
             
-            // Use the fresh redirectTo URL directly
+            // CRITICAL: Use the fresh redirectTo URL directly
+            // This should be exp://xxx.exp.direct/--/auth/callback in development
             const { error } = await supabase.auth.signInWithOtp({
               email: email.trim(),
               options: {
@@ -106,12 +126,20 @@ export const handleAuthCallback = async (url: string): Promise<void> => {
 
 // Enhanced deep link handler that works with the dynamic scheme
 export const handleDeepLink = async (url: string): Promise<void> => {
-  console.log('Received deep link:', url);
+  console.log('=== RECEIVED DEEP LINK ===');
+  console.log('URL:', url);
+  console.log('URL format check:');
+  console.log('- Contains exp.direct:', url.includes('.exp.direct'));
+  console.log('- Contains auth/callback:', url.includes('auth/callback'));
+  console.log('- Contains expo-checkin:', url.includes('expo-checkin'));
   
   // Check if this is an auth callback
   // This will work with both tunnel URLs and production URLs
   if (url.includes('auth/callback')) {
+    console.log('✅ Auth callback detected, processing...');
     await handleAuthCallback(url);
+  } else {
+    console.log('❌ Not an auth callback URL');
   }
 };
 
