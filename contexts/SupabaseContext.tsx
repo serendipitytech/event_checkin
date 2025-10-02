@@ -1,9 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 
 import { getSupabaseClient } from '../services/supabase';
-import { launchMagicLinkSignIn } from '../services/auth';
+import { launchMagicLinkSignIn, handleAuthCallback } from '../services/auth';
 import { fetchAccessibleEvents, type EventSummary } from '../services/events';
 
 export type SupabaseContextValue = {
@@ -38,8 +39,19 @@ export const SupabaseProvider = ({ children }: { children: ReactNode }) => {
 
     initialiseAuth();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_, newSession) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (!mounted) return;
       setSession(newSession ?? null);
+      
+      // Handle successful sign in
+      if (event === 'SIGNED_IN' && newSession) {
+        console.log('User signed in successfully');
+      }
+      
+      // Handle sign out
+      if (event === 'SIGNED_OUT') {
+        console.log('User signed out');
+      }
     });
 
     return () => {
@@ -47,6 +59,31 @@ export const SupabaseProvider = ({ children }: { children: ReactNode }) => {
       authListener.subscription.unsubscribe();
     };
   }, [supabase]);
+
+  // Handle deep linking for auth callbacks
+  useEffect(() => {
+    const handleDeepLink = (url: string) => {
+      if (url.includes('auth/callback')) {
+        handleAuthCallback(url);
+      }
+    };
+
+    // Check if app was opened with a deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink(url);
+      }
+    });
+
+    // Listen for deep links while app is running
+    const subscription = Linking.addEventListener('url', (event) => {
+      handleDeepLink(event.url);
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
 
   useEffect(() => {
     let ignore = false;
