@@ -18,6 +18,8 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { useRealtimeConnection } from '../../hooks/useRealtime';
 import { describeRole, normalizeRole } from '../../services/permissions';
 import { RosterImportModal } from '../../components/RosterImportModal';
+import { CreateEventModal } from '../../components/CreateEventModal';
+import { InviteUserModal } from '../../components/InviteUserModal';
 import type { ImportResult } from '../../services/rosterImport';
 
 const AUTO_REFRESH_OPTIONS = [
@@ -50,6 +52,8 @@ export default function AdminScreen() {
     getAutoRefreshInterval()
   );
   const [importModalVisible, setImportModalVisible] = useState(false);
+  const [createEventModalVisible, setCreateEventModalVisible] = useState(false);
+  const [inviteUserModalVisible, setInviteUserModalVisible] = useState(false);
 
   useEffect(() => {
     const remove = addAutoRefreshListener((interval) => {
@@ -115,6 +119,23 @@ export default function AdminScreen() {
       );
       emitRefreshAttendees({ silent: true });
     }
+  };
+
+  const handleCreateEventSuccess = (eventId: string) => {
+    Alert.alert(
+      'Event Created',
+      'Your new event has been created successfully. You can now invite team members and import attendees.',
+      [{ text: 'OK' }]
+    );
+    // Refresh events list - this will be handled by the SupabaseContext
+  };
+
+  const handleInviteUserSuccess = () => {
+    Alert.alert(
+      'Invitation Sent',
+      'The invitation has been sent successfully. The user will receive an email with instructions to join.',
+      [{ text: 'OK' }]
+    );
   };
 
   const handleSyncSheet = () => {
@@ -300,13 +321,7 @@ export default function AdminScreen() {
             <ActionButton
               label="Create New Event"
               variant="primary"
-              onPress={() => {
-                Alert.alert(
-                  'Create Event',
-                  'Event creation will be implemented in the next phase.',
-                  [{ text: 'OK' }]
-                );
-              }}
+              onPress={() => setCreateEventModalVisible(true)}
             />
             {canDeleteEvents && selectedEvent && (
               <ActionButton
@@ -347,13 +362,7 @@ export default function AdminScreen() {
             <ActionButton
               label="Invite User"
               variant="secondary"
-              onPress={() => {
-                Alert.alert(
-                  'Invite User',
-                  'User invitation will be implemented in the next phase.',
-                  [{ text: 'OK' }]
-                );
-              }}
+              onPress={() => setInviteUserModalVisible(true)}
             />
             <ActionButton
               label="Manage Users"
@@ -407,6 +416,20 @@ export default function AdminScreen() {
         eventId={selectedEvent?.eventId || ''}
         onClose={() => setImportModalVisible(false)}
         onSuccess={handleImportSuccess}
+      />
+
+      <CreateEventModal
+        visible={createEventModalVisible}
+        onClose={() => setCreateEventModalVisible(false)}
+        onSuccess={handleCreateEventSuccess}
+      />
+
+      <InviteUserModal
+        visible={inviteUserModalVisible}
+        eventId={selectedEvent?.eventId || ''}
+        userRole={currentRole}
+        onClose={() => setInviteUserModalVisible(false)}
+        onSuccess={handleInviteUserSuccess}
       />
     </ScrollView>
   );
