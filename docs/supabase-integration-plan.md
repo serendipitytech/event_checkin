@@ -6,6 +6,8 @@
 - **Magic Link Authentication** – Implemented email-based magic link sign-in with deep linking support
 - **Session Persistence** – Automatic session restoration and auth state management
 - **Deep Link Handling** – Support for `expo-checkin://auth/callback` URL scheme
+- **Dynamic Redirect URLs** – Automatic environment detection for dev/prod redirect handling
+- **Centralized Configuration** – Centralized config system with no hardcoded URLs
 
 ### Role-Based Access Control
 - **Comprehensive Permission System** – Granular role checks for all operations
@@ -57,14 +59,17 @@
 
 ## Testing & Documentation
 - ✅ **Updated**: Integration plan documentation reflects all implemented features
+- ✅ **Created**: Comprehensive Supabase auth setup guide with environment configuration
+- ✅ **Implemented**: Dynamic redirect URL handling for seamless dev/prod deployment
 - 🔄 **Next**: Co-locate integration tests under `tests/playwright` once flows exist, stubbing Supabase via the proxy
 - 🔄 **Next**: Update `CHECKIN_APP_DOCUMENTATION.md` with new features and user workflows
 
 ## New Service Architecture
 
 ### Core Services
+- **`config/env.ts`** – Centralized configuration with dynamic environment detection
 - **`services/supabase.ts`** – Supabase client singleton with auth configuration
-- **`services/auth.ts`** – Magic link authentication and deep link handling
+- **`services/auth.ts`** – Magic link authentication and dynamic deep link handling
 - **`services/permissions.ts`** – Role-based access control and permission helpers
 - **`services/realtime.ts`** – Enhanced real-time subscription management
 - **`services/eventManagement.ts`** – Event creation, user invitations, and role management

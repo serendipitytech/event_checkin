@@ -1,10 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
-import * as Linking from 'expo-linking';
 
 import { getSupabaseClient } from '../services/supabase';
-import { launchMagicLinkSignIn, handleAuthCallback } from '../services/auth';
+import { launchMagicLinkSignIn, initializeDeepLinkHandling } from '../services/auth';
 import { fetchAccessibleEvents, type EventSummary } from '../services/events';
 
 export type SupabaseContextValue = {
@@ -60,28 +59,22 @@ export const SupabaseProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [supabase]);
 
-  // Handle deep linking for auth callbacks
+  // Initialize deep link handling for auth callbacks
   useEffect(() => {
-    const handleDeepLink = (url: string) => {
-      if (url.includes('auth/callback')) {
-        handleAuthCallback(url);
+    let cleanup: (() => void) | undefined;
+
+    const initDeepLinks = async () => {
+      try {
+        cleanup = await initializeDeepLinkHandling();
+      } catch (error) {
+        console.error('Failed to initialize deep link handling:', error);
       }
     };
 
-    // Check if app was opened with a deep link
-    Linking.getInitialURL().then((url) => {
-      if (url) {
-        handleDeepLink(url);
-      }
-    });
-
-    // Listen for deep links while app is running
-    const subscription = Linking.addEventListener('url', (event) => {
-      handleDeepLink(event.url);
-    });
+    initDeepLinks();
 
     return () => {
-      subscription?.remove();
+      cleanup?.();
     };
   }, []);
 
