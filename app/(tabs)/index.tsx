@@ -44,8 +44,9 @@ import {
   getAutoRefreshInterval,
   RefreshOptions
 } from '../../services/attendeeEvents';
+import { useSupabase } from '../../hooks/useSupabase';
+import ActionButton from '../../components/ActionButton';
 
-const EVENT_NAME = 'NAACP Freedom Fund Banquet';
 const segments: AttendeeStatus[] = ['pending', 'checked-in'];
 const SORT_OPTIONS = [
   { key: 'attendeeName', label: 'Attendee' },
@@ -76,6 +77,12 @@ const getComparableValue = (attendee: Attendee, key: SortKey): string => {
 
 export default function CheckInScreen() {
   const navigation = useNavigation<Navigation>();
+  const {
+    session,
+    selectedEvent,
+    loading: supabaseLoading,
+    signIn
+  } = useSupabase();
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [activeStatus, setActiveStatus] = useState<AttendeeStatus>('pending');
   const [searchTerm, setSearchTerm] = useState('');
@@ -108,9 +115,44 @@ export default function CheckInScreen() {
     };
   }, [attendees]);
 
+  const headerEventName = useMemo(() => {
+    if (selectedEvent?.eventName) {
+      return selectedEvent.eventName;
+    }
+    if (supabaseLoading) {
+      return 'Loading events…';
+    }
+    if (!session) {
+      return 'Sign in to continue';
+    }
+    return 'Select an event';
+  }, [selectedEvent?.eventName, supabaseLoading, session]);
+
   const loadAttendees = useCallback(
     async (showSpinner: boolean, options?: RefreshOptions) => {
       const silent = options?.silent ?? false;
+      const stopIndicators = () => {
+        setLoading(false);
+        if (!silent) {
+          setRefreshing(false);
+        }
+      };
+
+      if (!session) {
+        stopIndicators();
+        setAttendees([]);
+        setError(null);
+        return;
+      }
+
+      const eventId = selectedEvent?.eventId;
+      if (!eventId) {
+        stopIndicators();
+        setAttendees([]);
+        setError(null);
+        return;
+      }
+
       if (showSpinner) {
         setLoading(true);
       } else if (!silent) {
@@ -118,20 +160,16 @@ export default function CheckInScreen() {
       }
 
       try {
-        const data = await fetchAttendees();
+        const data = await fetchAttendees(eventId);
         setAttendees(data);
         setError(null);
       } catch (err) {
         setError('Unable to load attendees.');
       } finally {
-        if (showSpinner) {
-          setLoading(false);
-        } else if (!silent) {
-          setRefreshing(false);
-        }
+        stopIndicators();
       }
     },
-    []
+    [selectedEvent?.eventId, session]
   );
 
   useEffect(() => {
@@ -139,20 +177,27 @@ export default function CheckInScreen() {
     let unsubscribe: (() => void) | undefined;
 
     const initialise = async () => {
+      if (!session || !selectedEvent?.eventId) {
+        await loadAttendees(false);
+        return;
+      }
+
       await loadAttendees(true);
-      unsubscribe = subscribeAttendees((change) => {
+      if (!isMounted) return;
+
+      unsubscribe = subscribeAttendees(selectedEvent.eventId, (change) => {
         if (!isMounted) return;
         setAttendees((prev) => applyAttendeeChange(prev, change));
       });
     };
 
-    initialise();
+    void initialise();
 
     return () => {
       isMounted = false;
       unsubscribe?.();
     };
-  }, [loadAttendees]);
+  }, [loadAttendees, selectedEvent?.eventId, session]);
 
   useEffect(() => {
     const remove = addRefreshListener((options) => {
@@ -202,7 +247,7 @@ export default function CheckInScreen() {
             numberOfLines={1}
             accessibilityRole="header"
           >
-            {EVENT_NAME}
+            {headerEventName}
           </Text>
           <Text
             style={styles.headerSubtitle}
@@ -215,7 +260,7 @@ export default function CheckInScreen() {
     };
 
     navigation.setOptions(options);
-  }, [navigation, totals]);
+  }, [headerEventName, navigation, totals]);
 
   const filteredAttendees = useMemo(() => {
     const lowerSearch = searchTerm.trim().toLowerCase();
@@ -314,6 +359,9 @@ export default function CheckInScreen() {
       const isPending = item.status === 'pending';
       const actionLabel = isPending ? 'Check In' : 'Undo';
       const actionColor = isPending ? '#27ae60' : '#c0392b';
+      const groupLabel = item.groupName || 'No group';
+      const tableLabel = item.tableNumber || '—';
+      const ticketLabel = item.ticketType || '—';
 
       return (
         <Swipeable
@@ -345,11 +393,11 @@ export default function CheckInScreen() {
             }}
             style={styles.row}
             accessibilityRole="button"
-            accessibilityLabel={`${item.attendeeName}. Group ${item.groupName}. Table ${item.tableNumber}. Ticket ${item.ticketType}.`}
+            accessibilityLabel={`${item.attendeeName}. Group ${groupLabel}. Table ${tableLabel}. Ticket ${ticketLabel}.`}
           >
             <View style={styles.rowInfo}>
               <Text style={styles.rowName}>{item.attendeeName}</Text>
-              <Text style={styles.rowMeta}>{`${item.groupName} • Table ${item.tableNumber} • ${item.ticketType}`}</Text>
+              <Text style={styles.rowMeta}>{`${groupLabel} • Table ${tableLabel} • ${ticketLabel}`}</Text>
             </View>
             <View style={[styles.statusPill, isPending ? styles.statusPending : styles.statusChecked]}>
               <Text style={styles.statusPillLabel}>{isPending ? 'Pending' : 'Checked'}</Text>
@@ -447,6 +495,40 @@ export default function CheckInScreen() {
     </View>
   ), [activeStatus, error, searchTerm, sortsVisible, sortKey, sortOrder, toggleSort]);
 
+  if (supabaseLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#1f1f1f" />
+        <Text style={styles.loadingText}>Connecting to Supabase…</Text>
+      </View>
+    );
+  }
+
+  if (!session) {
+    return (
+      <View style={styles.authContainer}>
+        <Ionicons name="log-in-outline" size={40} color="#8e8e93" accessibilityElementsHidden />
+        <Text style={styles.authTitle}>Sign in required</Text>
+        <Text style={styles.authSubtitle}>
+          Tap below to launch the Supabase auth flow and load your events.
+        </Text>
+        <ActionButton label="Sign In" onPress={() => { void signIn(); }} />
+      </View>
+    );
+  }
+
+  if (!selectedEvent) {
+    return (
+      <View style={styles.authContainer}>
+        <Ionicons name="calendar-outline" size={40} color="#8e8e93" accessibilityElementsHidden />
+        <Text style={styles.authTitle}>Choose an event</Text>
+        <Text style={styles.authSubtitle}>
+          Use the Admin tab to select which event you want to manage.
+        </Text>
+      </View>
+    );
+  }
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -498,9 +580,9 @@ export default function CheckInScreen() {
               </Text>
               <View style={styles.modalContent}>
                 <Text style={styles.modalName}>{pendingModal.attendee.attendeeName}</Text>
-                <Text style={styles.modalMeta}>{pendingModal.attendee.groupName}</Text>
-                <Text style={styles.modalMetaBold}>{`Table ${pendingModal.attendee.tableNumber}`}</Text>
-                <Text style={styles.modalMeta}>{pendingModal.attendee.ticketType}</Text>
+                <Text style={styles.modalMeta}>{pendingModal.attendee.groupName || 'No group'}</Text>
+                <Text style={styles.modalMetaBold}>{`Table ${pendingModal.attendee.tableNumber || '—'}`}</Text>
+                <Text style={styles.modalMeta}>{pendingModal.attendee.ticketType || '—'}</Text>
               </View>
 
               <TouchableOpacity
@@ -553,9 +635,9 @@ export default function CheckInScreen() {
               <Text style={styles.modalTitle}>Check In Multiple</Text>
               <View style={styles.modalContent}>
                 <Text style={styles.modalName}>{groupPrompt.attendeeName}</Text>
-                <Text style={styles.modalMeta}>Group: {groupPrompt.groupName}</Text>
-                <Text style={styles.modalMetaBold}>{`Table ${groupPrompt.tableNumber}`}</Text>
-                <Text style={styles.modalMeta}>{groupPrompt.ticketType}</Text>
+                <Text style={styles.modalMeta}>Group: {groupPrompt.groupName || 'No group'}</Text>
+                <Text style={styles.modalMetaBold}>{`Table ${groupPrompt.tableNumber || '—'}`}</Text>
+                <Text style={styles.modalMeta}>{groupPrompt.ticketType || '—'}</Text>
               </View>
 
               <TouchableOpacity
@@ -577,7 +659,11 @@ export default function CheckInScreen() {
                 }}
                 activeOpacity={0.85}
               >
-                <Text style={styles.modalSecondaryLabel}>{`Check In Table ${groupPrompt.tableNumber}`}</Text>
+                <Text style={styles.modalSecondaryLabel}>
+                  {groupPrompt.tableNumber
+                    ? `Check In Table ${groupPrompt.tableNumber}`
+                    : 'Check In Table'}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -645,6 +731,27 @@ const styles = StyleSheet.create({
     color: '#1f1f1f',
     fontSize: 16,
     fontFamily: 'System'
+  },
+  authContainer: {
+    flex: 1,
+    backgroundColor: '#f2f3f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    gap: 12
+  },
+  authTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    fontFamily: 'System',
+    color: '#050505'
+  },
+  authSubtitle: {
+    fontSize: 14,
+    fontFamily: 'System',
+    color: '#4a4a4a',
+    textAlign: 'center',
+    lineHeight: 20
   },
   filtersOuter: {
     backgroundColor: '#f2f3f5',

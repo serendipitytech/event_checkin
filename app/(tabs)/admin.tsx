@@ -13,6 +13,8 @@ import {
   getAutoRefreshInterval,
   setAutoRefreshInterval
 } from '../../services/attendeeEvents';
+import { useSupabase } from '../../hooks/useSupabase';
+import { canManageAttendees, describeRole, normalizeRole } from '../../services/permissions';
 
 const AUTO_REFRESH_OPTIONS = [
   { label: 'Off', value: 0 },
@@ -24,6 +26,14 @@ const AUTO_REFRESH_OPTIONS = [
 ] as const;
 
 export default function AdminScreen() {
+  const {
+    events,
+    selectedEvent,
+    setSelectedEventId,
+    loading: supabaseLoading
+  } = useSupabase();
+  const currentRole = normalizeRole(selectedEvent?.role);
+  const canManageRoster = canManageAttendees(currentRole);
   const [autoRefreshInterval, setAutoRefreshIntervalState] = useState<number>(
     getAutoRefreshInterval()
   );
@@ -36,6 +46,16 @@ export default function AdminScreen() {
   }, []);
 
   const handleResetAll = () => {
+    if (!selectedEvent) {
+      Alert.alert('No event selected', 'Select an event before resetting attendees.');
+      return;
+    }
+
+    if (!canManageRoster) {
+      Alert.alert('Restricted', 'Your role does not allow resetting attendee check-ins.');
+      return;
+    }
+
     Alert.alert(
       'Reset All Check-Ins',
       'This will move every attendee back to Pending. Continue?',
@@ -46,7 +66,7 @@ export default function AdminScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await resetAllCheckins();
+              await resetAllCheckins(selectedEvent.eventId);
               emitRefreshAttendees({ silent: true });
               Alert.alert('Reset complete', 'All attendees were marked Pending.');
             } catch (err) {
@@ -60,6 +80,11 @@ export default function AdminScreen() {
   };
 
   const handleImportRoster = () => {
+    if (!canManageRoster) {
+      Alert.alert('Restricted', 'Ask an event manager or admin to import attendee files.');
+      return;
+    }
+
     Alert.alert(
       'Roster Import',
       'File import for CSV/XLSX will live here. Decide on the preferred mobile picker workflow before enabling this action.'
@@ -68,6 +93,11 @@ export default function AdminScreen() {
   };
 
   const handleSyncSheet = () => {
+    if (!canManageRoster) {
+      Alert.alert('Restricted', 'Ask an event manager or admin to sync Google Sheets.');
+      return;
+    }
+
     Alert.alert(
       'Google Sheet Sync',
       'Google Sheet sync will route through the proxy once implemented.'
@@ -78,6 +108,30 @@ export default function AdminScreen() {
   const handleSelectAutoRefresh = (interval: number) => {
     setAutoRefreshIntervalState(interval);
     setAutoRefreshInterval(interval);
+  };
+
+  const handleSelectEvent = () => {
+    if (supabaseLoading) {
+      Alert.alert('Loading', 'Fetching your events, please wait.');
+      return;
+    }
+
+    if (!events.length) {
+      Alert.alert('No Events', 'You do not have access to any events yet.');
+      return;
+    }
+
+    Alert.alert(
+      'Select Event',
+      'Choose which event to manage.',
+      [
+        ...events.map((event) => ({
+          text: event.eventName,
+          onPress: () => setSelectedEventId(event.eventId)
+        })),
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
   };
 
   return (
@@ -99,25 +153,70 @@ export default function AdminScreen() {
             label="Import CSV/XLSX"
             variant="secondary"
             onPress={handleImportRoster}
+            disabled={!canManageRoster}
           />
           <ActionButton
             label="Sync Google Sheet"
             variant="secondary"
             onPress={handleSyncSheet}
+            disabled={!canManageRoster}
           />
           <ActionButton
             label="Reset Check-Ins"
             variant="danger"
             onPress={handleResetAll}
+            disabled={!selectedEvent || !canManageRoster}
           />
+        </View>
       </View>
-    </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Auto Refresh</Text>
         <Text style={styles.cardSubtitle}>
           Choose how often the attendee list refreshes automatically.
         </Text>
+        <View style={styles.autoRefreshOptions}>
+          {AUTO_REFRESH_OPTIONS.map((option) => {
+            const isActive = autoRefreshInterval === option.value;
+            return (
+              <TouchableOpacity
+                key={option.value}
+                onPress={() => handleSelectAutoRefresh(option.value)}
+                style={[styles.autoRefreshChip, isActive ? styles.autoRefreshChipActive : null]}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[styles.autoRefreshChipLabel, isActive ? styles.autoRefreshChipLabelActive : null]}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Event Settings</Text>
+        <Text style={styles.cardSubtitle}>
+          Manage which event you are viewing and how often attendee data refreshes.
+        </Text>
+        <View style={styles.eventInfoRow}>
+          <Text style={styles.eventInfoLabel}>Current Event</Text>
+          <Text style={styles.eventInfoValue}>
+            {selectedEvent ? selectedEvent.eventName : 'No event selected'}
+          </Text>
+          <TouchableOpacity onPress={handleSelectEvent} style={styles.eventSwitcher}>
+            <Text style={styles.eventSwitcherLabel}>Change</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.eventInfoRow}>
+          <Text style={styles.eventInfoLabel}>Your Role</Text>
+          <Text style={styles.eventInfoValue}>{describeRole(currentRole)}</Text>
+        </View>
+
+        <Text style={styles.autoRefreshLabel}>Auto Refresh</Text>
         <View style={styles.autoRefreshOptions}>
           {AUTO_REFRESH_OPTIONS.map((option) => {
             const isActive = autoRefreshInterval === option.value;
@@ -192,10 +291,42 @@ const styles = StyleSheet.create({
   actions: {
     gap: 12
   },
+  eventInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  eventInfoLabel: {
+    fontSize: 12,
+    color: '#6e6e73'
+  },
+  eventInfoValue: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f1f1f'
+  },
+  eventSwitcher: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#f0f0f2'
+  },
+  eventSwitcherLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1f1f1f'
+  },
   autoRefreshOptions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8
+  },
+  autoRefreshLabel: {
+    marginTop: 12,
+    marginBottom: 6,
+    fontSize: 12,
+    color: '#6e6e73'
   },
   autoRefreshChip: {
     paddingHorizontal: 12,

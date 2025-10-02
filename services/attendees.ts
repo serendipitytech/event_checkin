@@ -6,22 +6,31 @@ export type AttendeeStatus = 'pending' | 'checked-in';
 
 export type Attendee = {
   id: string;
+  eventId: string;
   attendeeName: string;
   groupName: string;
   tableNumber: string;
   ticketType: string;
+  notes?: string | null;
   status: AttendeeStatus;
+  checkedIn: boolean;
   checkedInAt?: string | null;
+  checkedInBy?: string | null;
+  updatedAt?: string | null;
 };
 
 type AttendeeRecord = {
   id: string | number;
-  attendee_name: string | null;
+  event_id: string | null;
+  full_name: string | null;
   group_name: string | null;
   table_number: string | null;
   ticket_type: string | null;
-  status: AttendeeStatus | null;
+  notes: string | null;
+  checked_in: boolean | null;
   checked_in_at: string | null;
+  checked_in_by: string | null;
+  updated_at: string | null;
 };
 
 export type AttendeeChange = {
@@ -31,27 +40,39 @@ export type AttendeeChange = {
 };
 
 const mapRecordToAttendee = (record: AttendeeRecord | null): Attendee | null => {
-  if (!record) return null;
+  if (!record || !record.event_id) return null;
+
+  const checkedIn = Boolean(record.checked_in);
+  const fullName = record.full_name?.trim();
+  const groupName = record.group_name?.trim();
+  const tableNumber = record.table_number?.trim();
+  const ticketType = record.ticket_type?.trim();
 
   return {
     id: String(record.id),
-    attendeeName: record.attendee_name ?? 'Unnamed Guest',
-    groupName: record.group_name ?? '—',
-    tableNumber: record.table_number ?? '—',
-    ticketType: record.ticket_type ?? '—',
-    status: record.status ?? 'pending',
-    checkedInAt: record.checked_in_at
+    eventId: String(record.event_id),
+    attendeeName: fullName && fullName.length > 0 ? fullName : 'Unnamed Guest',
+    groupName: groupName ?? '',
+    tableNumber: tableNumber ?? '',
+    ticketType: ticketType ?? '',
+    notes: record.notes,
+    status: checkedIn ? 'checked-in' : 'pending',
+    checkedIn,
+    checkedInAt: record.checked_in_at,
+    checkedInBy: record.checked_in_by,
+    updatedAt: record.updated_at
   };
 };
 
-export const fetchAttendees = async (): Promise<Attendee[]> => {
+export const fetchAttendees = async (eventId: string): Promise<Attendee[]> => {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('attendees')
     .select(
-      'id, attendee_name, group_name, table_number, ticket_type, status, checked_in_at'
+      'id, event_id, full_name, group_name, table_number, ticket_type, notes, checked_in, checked_in_at, checked_in_by, updated_at'
     )
-    .order('attendee_name');
+    .eq('event_id', eventId)
+    .order('full_name');
 
   if (error) {
     throw error;
@@ -63,14 +84,20 @@ export const fetchAttendees = async (): Promise<Attendee[]> => {
 };
 
 export const subscribeAttendees = (
+  eventId: string,
   onChange: (change: AttendeeChange) => void
 ) => {
   const supabase = getSupabaseClient();
   const channel = supabase
-    .channel('attendees-changes')
+    .channel(`attendees-${eventId}`)
     .on<AttendeeRecord>(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'attendees' },
+      {
+        event: '*',
+        schema: 'public',
+        table: 'attendees',
+        filter: `event_id=eq.${eventId}`
+      },
       (payload) => {
         const attendee = mapRecordToAttendee(
           (payload.eventType === 'DELETE' ? payload.old : payload.new) as
@@ -97,31 +124,65 @@ export const toggleCheckin = async (
   checkedIn: boolean
 ): Promise<void> => {
   const supabase = getSupabaseClient();
-  const nextStatus: AttendeeStatus = checkedIn ? 'checked-in' : 'pending';
-  const { error } = await supabase
-    .from('attendees')
-    .update({
-      status: nextStatus,
-      checked_in_at: checkedIn ? new Date().toISOString() : null
-    })
-    .eq('id', attendeeId);
+  const { error } = await supabase.rpc('toggle_checkin', {
+    p_attendee_id: attendeeId,
+    p_checked: checkedIn
+  });
 
   if (error) {
     throw error;
   }
 };
 
-export const resetAllCheckins = async (): Promise<void> => {
+export const resetAllCheckins = async (eventId: string): Promise<void> => {
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from('attendees')
-    .update({ status: 'pending', checked_in_at: null })
-    .neq('status', 'pending');
+    .update({ checked_in: false, checked_in_at: null, checked_in_by: null })
+    .eq('event_id', eventId);
 
   if (error) {
     console.error('resetAllCheckins failed', error);
     throw error;
   }
+};
+
+export const bulkCheckInByGroup = async (
+  eventId: string,
+  groupName: string,
+  checkedIn: boolean
+): Promise<number> => {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.rpc('bulk_checkin_by_group', {
+    p_event_id: eventId,
+    p_group: groupName,
+    p_checked: checkedIn
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data as number) ?? 0;
+};
+
+export const bulkCheckInByTable = async (
+  eventId: string,
+  tableNumber: string,
+  checkedIn: boolean
+): Promise<number> => {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.rpc('bulk_checkin_by_table', {
+    p_event_id: eventId,
+    p_table: tableNumber,
+    p_checked: checkedIn
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data as number) ?? 0;
 };
 
 export const importAttendeesFromFile = async (fileUri: string): Promise<void> => {
