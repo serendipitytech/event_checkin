@@ -1,0 +1,911 @@
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  ListRenderItem,
+  Modal,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { ParamListBase } from '@react-navigation/native';
+import {
+  NativeStackNavigationOptions,
+  NativeStackNavigationProp
+} from '@react-navigation/native-stack';
+import { useNavigation } from 'expo-router';
+import { Swipeable } from 'react-native-gesture-handler';
+
+import {
+  Attendee,
+  AttendeeChange,
+  AttendeeStatus,
+  fetchAttendees,
+  subscribeAttendees,
+  toggleCheckin
+} from '../../services/attendees';
+import {
+  addRefreshListener,
+  addAutoRefreshListener,
+  getAutoRefreshInterval,
+  RefreshOptions
+} from '../../services/attendeeEvents';
+
+const EVENT_NAME = 'NAACP Freedom Fund Banquet';
+const segments: AttendeeStatus[] = ['pending', 'checked-in'];
+const SORT_OPTIONS = [
+  { key: 'attendeeName', label: 'Attendee' },
+  { key: 'groupName', label: 'Group' },
+  { key: 'tableNumber', label: 'Table' },
+  { key: 'ticketType', label: 'Ticket' }
+] as const;
+
+type Navigation = NativeStackNavigationProp<ParamListBase>;
+
+type SortKey = (typeof SORT_OPTIONS)[number]['key'];
+type SortOrder = 'asc' | 'desc';
+
+const getComparableValue = (attendee: Attendee, key: SortKey): string => {
+  switch (key) {
+    case 'attendeeName':
+      return attendee.attendeeName;
+    case 'groupName':
+      return attendee.groupName;
+    case 'tableNumber':
+      return attendee.tableNumber;
+    case 'ticketType':
+      return attendee.ticketType;
+    default:
+      return '';
+  }
+};
+
+export default function CheckInScreen() {
+  const navigation = useNavigation<Navigation>();
+  const [attendees, setAttendees] = useState<Attendee[]>([]);
+  const [activeStatus, setActiveStatus] = useState<AttendeeStatus>('pending');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('attendeeName');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [sortsVisible, setSortsVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [autoRefreshInterval, setAutoRefreshIntervalState] = useState<number>(
+    getAutoRefreshInterval()
+  );
+  const [pendingModal, setPendingModal] = useState<{
+    attendee: Attendee;
+    action: 'check-in' | 'undo';
+    origin: 'tap' | 'swipe';
+  } | null>(null);
+  const [groupPrompt, setGroupPrompt] = useState<Attendee | null>(null);
+  const lastTapRef = useRef<{ id: string; timestamp: number } | null>(null);
+  const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const totals = useMemo(() => {
+    const pending = attendees.filter((item) => item.status === 'pending').length;
+    const checkedIn = attendees.filter((item) => item.status === 'checked-in').length;
+
+    return {
+      total: attendees.length,
+      pending,
+      checkedIn
+    };
+  }, [attendees]);
+
+  const loadAttendees = useCallback(
+    async (showSpinner: boolean, options?: RefreshOptions) => {
+      const silent = options?.silent ?? false;
+      if (showSpinner) {
+        setLoading(true);
+      } else if (!silent) {
+        setRefreshing(true);
+      }
+
+      try {
+        const data = await fetchAttendees();
+        setAttendees(data);
+        setError(null);
+      } catch (err) {
+        setError('Unable to load attendees.');
+      } finally {
+        if (showSpinner) {
+          setLoading(false);
+        } else if (!silent) {
+          setRefreshing(false);
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+    let unsubscribe: (() => void) | undefined;
+
+    const initialise = async () => {
+      await loadAttendees(true);
+      unsubscribe = subscribeAttendees((change) => {
+        if (!isMounted) return;
+        setAttendees((prev) => applyAttendeeChange(prev, change));
+      });
+    };
+
+    initialise();
+
+    return () => {
+      isMounted = false;
+      unsubscribe?.();
+    };
+  }, [loadAttendees]);
+
+  useEffect(() => {
+    const remove = addRefreshListener((options) => {
+      void loadAttendees(false, options);
+    });
+    return remove;
+  }, [loadAttendees]);
+
+  useEffect(() => {
+    const remove = addAutoRefreshListener((interval) => {
+      setAutoRefreshIntervalState(interval);
+    });
+    return remove;
+  }, []);
+
+  useEffect(() => {
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+
+    if (autoRefreshInterval > 0) {
+      refreshTimerRef.current = setInterval(() => {
+        void loadAttendees(false, { silent: true });
+      }, autoRefreshInterval);
+    }
+
+    return () => {
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
+  }, [autoRefreshInterval, loadAttendees]);
+
+  useLayoutEffect(() => {
+    const options: NativeStackNavigationOptions = {
+      headerLargeTitle: false,
+      headerTintColor: '#050505',
+      headerStyle: {
+        backgroundColor: '#f5cb08'
+      },
+      headerTitle: () => (
+        <View style={styles.headerTitleWrapper}>
+          <Text
+            style={styles.headerTitle}
+            numberOfLines={1}
+            accessibilityRole="header"
+          >
+            {EVENT_NAME}
+          </Text>
+          <Text
+            style={styles.headerSubtitle}
+            accessibilityLabel={`Totals. ${totals.pending} pending, ${totals.checkedIn} checked in, ${totals.total} total`}
+          >
+            {`${totals.pending} pending • ${totals.checkedIn} checked • ${totals.total} total`}
+          </Text>
+        </View>
+      )
+    };
+
+    navigation.setOptions(options);
+  }, [navigation, totals]);
+
+  const filteredAttendees = useMemo(() => {
+    const lowerSearch = searchTerm.trim().toLowerCase();
+
+    const filtered = attendees
+      .filter((item) => item.status === activeStatus)
+      .filter((item) => {
+        if (!lowerSearch) return true;
+        const haystack = `${item.attendeeName} ${item.groupName} ${item.tableNumber} ${item.ticketType}`.toLowerCase();
+        return haystack.includes(lowerSearch);
+      })
+      .sort((a, b) => {
+        const valueA = getComparableValue(a, sortKey).toLowerCase();
+        const valueB = getComparableValue(b, sortKey).toLowerCase();
+        const cmp = valueA.localeCompare(valueB, undefined, { sensitivity: 'base' });
+        return sortOrder === 'asc' ? cmp : -cmp;
+      });
+    return filtered;
+  }, [attendees, activeStatus, searchTerm, sortKey, sortOrder]);
+
+  const openConfirmation = useCallback(
+    (attendee: Attendee, action: 'check-in' | 'undo', origin: 'tap' | 'swipe', close?: () => void) => {
+      setPendingModal({ attendee, action, origin });
+      close?.();
+    },
+    []
+  );
+
+  const handleConfirm = useCallback(
+    async (attendee: Attendee, makeCheckedIn: boolean) => {
+      try {
+        await toggleCheckin(attendee.id, makeCheckedIn);
+        setError(null);
+        setAttendees((prev) =>
+          prev.map((existing) =>
+            existing.id === attendee.id
+              ? { ...existing, status: makeCheckedIn ? 'checked-in' : 'pending' }
+              : existing
+          )
+        );
+      } catch (err) {
+        setError('Unable to update attendee.');
+        Alert.alert('Update failed', 'Please try again.');
+      }
+    },
+    []
+  );
+
+  const handleGroupAction = useCallback(
+    async (attendee: Attendee, scope: 'group' | 'table') => {
+      const normalizedGroup = attendee.groupName.toLowerCase();
+      const normalizedTable = attendee.tableNumber.toLowerCase();
+
+      const targets = attendees.filter((candidate) =>
+        scope === 'group'
+          ? candidate.groupName.toLowerCase() === normalizedGroup
+          : candidate.tableNumber.toLowerCase() === normalizedTable
+      );
+
+      if (!targets.length) return;
+
+      try {
+        await Promise.all(targets.map((target) => toggleCheckin(target.id, true)));
+        setAttendees((prev) =>
+          prev.map((existing) =>
+            targets.some((target) => target.id === existing.id)
+              ? { ...existing, status: 'checked-in' }
+              : existing
+          )
+        );
+        setError(null);
+        await loadAttendees(false, { silent: true });
+      } catch (err) {
+        setError('Unable to check in group.');
+        Alert.alert('Group check-in failed', 'Please try again.');
+      }
+    },
+    [attendees, loadAttendees]
+  );
+
+  const toggleSort = useCallback(
+    (key: SortKey) => {
+      if (sortKey === key) {
+        setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      } else {
+        setSortKey(key);
+        setSortOrder('asc');
+      }
+    },
+    [sortKey]
+  );
+
+  const renderItem = useCallback<ListRenderItem<Attendee>>(
+    ({ item }) => {
+      let swipeRef: Swipeable | null = null;
+      const isPending = item.status === 'pending';
+      const actionLabel = isPending ? 'Check In' : 'Undo';
+      const actionColor = isPending ? '#27ae60' : '#c0392b';
+
+      return (
+        <Swipeable
+          ref={(ref) => {
+            swipeRef = ref;
+          }}
+          friction={2}
+          leftThreshold={72}
+          overshootLeft={false}
+          renderLeftActions={() => (
+            <View style={[styles.swipeAction, { backgroundColor: actionColor }]}> 
+              <Text style={styles.swipeActionLabel}>{actionLabel}</Text>
+            </View>
+          )}
+          onSwipeableLeftOpen={() =>
+            openConfirmation(item, isPending ? 'check-in' : 'undo', 'swipe', () => swipeRef?.close())
+          }
+        >
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              const now = Date.now();
+              if (lastTapRef.current && lastTapRef.current.id === item.id && now - lastTapRef.current.timestamp < 400) {
+                lastTapRef.current = null;
+                openConfirmation(item, isPending ? 'check-in' : 'undo', 'tap', () => swipeRef?.close());
+              } else {
+                lastTapRef.current = { id: item.id, timestamp: now };
+              }
+            }}
+            style={styles.row}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.attendeeName}. Group ${item.groupName}. Table ${item.tableNumber}. Ticket ${item.ticketType}.`}
+          >
+            <View style={styles.rowInfo}>
+              <Text style={styles.rowName}>{item.attendeeName}</Text>
+              <Text style={styles.rowMeta}>{`${item.groupName} • Table ${item.tableNumber} • ${item.ticketType}`}</Text>
+            </View>
+            <View style={[styles.statusPill, isPending ? styles.statusPending : styles.statusChecked]}>
+              <Text style={styles.statusPillLabel}>{isPending ? 'Pending' : 'Checked'}</Text>
+            </View>
+          </TouchableOpacity>
+        </Swipeable>
+      );
+    },
+    [openConfirmation]
+  );
+
+  const renderFilters = useCallback(() => (
+    <View style={styles.filtersContainer}>
+      <View style={styles.segmentContainer}>
+        {segments.map((segment) => {
+          const isActive = activeStatus === segment;
+          return (
+            <View key={segment} style={styles.segmentWrapper}>
+              <TouchableOpacity
+                onPress={() => setActiveStatus(segment)}
+                accessibilityRole="button"
+                accessibilityLabel={`Show ${segment === 'pending' ? 'pending attendees' : 'checked-in attendees'}`}
+                style={styles.segmentPressable}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[styles.segmentLabel, isActive ? styles.segmentLabelActive : styles.segmentLabelInactive]}
+                >
+                  {segment === 'pending' ? 'Pending' : 'Checked In'}
+                </Text>
+              </TouchableOpacity>
+              {isActive && <View style={styles.segmentIndicator} />}
+            </View>
+          );
+        })}
+      </View>
+
+      <View style={styles.searchRow}>
+        <Ionicons name="search" size={16} color="#7c7c7c" accessibilityElementsHidden />
+        <TextInput
+          value={searchTerm}
+          onChangeText={setSearchTerm}
+          placeholder="Search attendees"
+          placeholderTextColor="#a0a0a0"
+          style={styles.searchInput}
+          autoCorrect={false}
+          accessibilityLabel="Search attendees"
+          clearButtonMode="while-editing"
+        />
+        <TouchableOpacity
+          onPress={() => setSortsVisible((prev) => !prev)}
+          accessibilityRole="button"
+          accessibilityLabel={sortsVisible ? 'Hide sort options' : 'Show sort options'}
+          style={styles.sortToggle}
+          activeOpacity={0.6}
+        >
+          <Ionicons
+            name={sortsVisible ? 'chevron-up' : 'swap-vertical'}
+            size={18}
+            color="#007aff"
+          />
+        </TouchableOpacity>
+      </View>
+
+      {sortsVisible && (
+        <View style={styles.sortRow}>
+          {SORT_OPTIONS.map((option) => {
+            const isActive = sortKey === option.key;
+            const arrow = isActive ? (sortOrder === 'asc' ? '↑' : '↓') : '';
+            return (
+              <TouchableOpacity
+                key={option.key}
+                onPress={() => toggleSort(option.key)}
+                accessibilityRole="button"
+                accessibilityLabel={`Sort by ${option.label}`}
+                style={[styles.sortChip, isActive ? styles.sortChipActive : null]}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[styles.sortChipLabel, isActive ? styles.sortChipLabelActive : null]}
+                >
+                  {`${option.label} ${arrow}`.trim()}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
+      {error && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+    </View>
+  ), [activeStatus, error, searchTerm, sortsVisible, sortKey, sortOrder, toggleSort]);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#1f1f1f" />
+        <Text style={styles.loadingText}>Loading attendees…</Text>
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+      <View style={styles.filtersOuter}>{renderFilters()}</View>
+      <FlatList
+        data={filteredAttendees}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              void loadAttendees(false);
+            }}
+            tintColor="#1f1f1f"
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Ionicons name="people-outline" size={40} color="#8e8e93" accessibilityElementsHidden />
+            <Text style={styles.emptyTitle}>No attendees found</Text>
+            <Text style={styles.emptySubtitle}>Adjust your filters or try another list.</Text>
+          </View>
+        }
+        ItemSeparatorComponent={() => <View style={styles.itemDivider} />}
+        ListFooterComponent={<View style={styles.footerSpacer} />}
+      />
+
+      <Modal
+        visible={pendingModal !== null}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setPendingModal(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          {pendingModal && (
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>
+                {pendingModal.action === 'check-in' ? 'Confirm Check-In' : 'Undo Check-In'}
+              </Text>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalName}>{pendingModal.attendee.attendeeName}</Text>
+                <Text style={styles.modalMeta}>{pendingModal.attendee.groupName}</Text>
+                <Text style={styles.modalMetaBold}>{`Table ${pendingModal.attendee.tableNumber}`}</Text>
+                <Text style={styles.modalMeta}>{pendingModal.attendee.ticketType}</Text>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalPrimaryButton]}
+                onPress={async () => {
+                  const isCheckIn = pendingModal.action === 'check-in';
+                  await handleConfirm(pendingModal.attendee, isCheckIn);
+                  setPendingModal(null);
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalPrimaryLabel}>
+                  {pendingModal.action === 'check-in' ? 'Confirm Check-In' : 'Confirm Undo'}
+                </Text>
+              </TouchableOpacity>
+
+              {pendingModal.action === 'check-in' && (
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalSecondaryButton]}
+                  onPress={() => {
+                    setGroupPrompt(pendingModal.attendee);
+                    setPendingModal(null);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.modalSecondaryLabel}>Check In Group</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.modalCancel}
+                onPress={() => setPendingModal(null)}
+              >
+                <Text style={styles.modalCancelLabel}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      <Modal
+        visible={groupPrompt !== null}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setGroupPrompt(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          {groupPrompt && (
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>Check In Multiple</Text>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalName}>{groupPrompt.attendeeName}</Text>
+                <Text style={styles.modalMeta}>Group: {groupPrompt.groupName}</Text>
+                <Text style={styles.modalMetaBold}>{`Table ${groupPrompt.tableNumber}`}</Text>
+                <Text style={styles.modalMeta}>{groupPrompt.ticketType}</Text>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalPrimaryButton]}
+                onPress={async () => {
+                  await handleGroupAction(groupPrompt, 'group');
+                  setGroupPrompt(null);
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalPrimaryLabel}>Check In Entire Group</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalSecondaryButton]}
+                onPress={async () => {
+                  await handleGroupAction(groupPrompt, 'table');
+                  setGroupPrompt(null);
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalSecondaryLabel}>{`Check In Table ${groupPrompt.tableNumber}`}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalCancel}
+                onPress={() => setGroupPrompt(null)}
+              >
+                <Text style={styles.modalCancelLabel}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+function applyAttendeeChange(current: Attendee[], change: AttendeeChange): Attendee[] {
+  const { type, attendee, payload } = change;
+
+  if (type === 'DELETE') {
+    const idToRemove = attendee?.id ?? (payload.old ? String((payload.old as { id?: string | number }).id ?? '') : '');
+    if (!idToRemove) return current;
+    return current.filter((existing) => existing.id !== idToRemove);
+  }
+
+  if (attendee) {
+    const exists = current.some((existing) => existing.id === attendee.id);
+    if (exists) {
+      return current.map((existing) => (existing.id === attendee.id ? attendee : existing));
+    }
+    return [...current, attendee];
+  }
+
+  return current;
+}
+
+const styles = StyleSheet.create({
+  headerTitleWrapper: {
+    alignItems: 'flex-start'
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    fontFamily: 'System',
+    color: '#050505'
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    fontFamily: 'System',
+    color: '#1f1f1f',
+    marginTop: 2
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f2f3f5'
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f2f3f5'
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#1f1f1f',
+    fontSize: 16,
+    fontFamily: 'System'
+  },
+  filtersOuter: {
+    backgroundColor: '#f2f3f5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#d9d9dc'
+  },
+  filtersContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    gap: 8
+  },
+  listContent: {
+    paddingBottom: 24
+  },
+  segmentContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between'
+  },
+  segmentWrapper: {
+    flex: 1,
+    alignItems: 'center'
+  },
+  segmentPressable: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 8
+  },
+  segmentLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'System',
+    paddingVertical: 4,
+    color: '#8e8e93'
+  },
+  segmentLabelActive: {
+    color: '#1f1f1f'
+  },
+  segmentLabelInactive: {
+    color: '#8e8e93'
+  },
+  segmentIndicator: {
+    marginTop: 2,
+    width: 44,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#007aff'
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#e9eaec',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: 'System',
+    color: '#1f1f1f'
+  },
+  sortToggle: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#f4f4f8'
+  },
+  sortRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  sortChip: {
+    backgroundColor: '#f1f1f5',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8
+  },
+  sortChipActive: {
+    backgroundColor: '#1f1f1f'
+  },
+  sortChipLabel: {
+    fontSize: 13,
+    fontFamily: 'System',
+    fontWeight: '600',
+    color: '#1f1f1f'
+  },
+  sortChipLabelActive: {
+    color: '#ffffff'
+  },
+  swipeAction: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20
+  },
+  swipeActionLabel: {
+    fontSize: 15,
+    fontFamily: 'System',
+    fontWeight: '600',
+    color: '#ffffff'
+  },
+  errorBanner: {
+    backgroundColor: '#fdecea',
+    padding: 12,
+    borderRadius: 12
+  },
+  errorText: {
+    color: '#c0392b',
+    fontSize: 14,
+    fontFamily: 'System',
+    textAlign: 'center'
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff'
+  },
+  rowInfo: {
+    flex: 1,
+    paddingRight: 12
+  },
+  rowName: {
+    fontSize: 17,
+    fontWeight: '600',
+    fontFamily: 'System',
+    color: '#1f1f1f'
+  },
+  rowMeta: {
+    marginTop: 2,
+    fontSize: 13,
+    fontFamily: 'System',
+    color: '#8e8e93'
+  },
+  statusPill: {
+    minWidth: 72,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    alignItems: 'center'
+  },
+  statusPending: {
+    backgroundColor: '#f4f4f6'
+  },
+  statusChecked: {
+    backgroundColor: '#d1f7de'
+  },
+  statusPillLabel: {
+    fontSize: 12,
+    fontFamily: 'System',
+    fontWeight: '600',
+    color: '#1f1f1f'
+  },
+  itemDivider: {
+    height: 1,
+    marginLeft: 16,
+    backgroundColor: '#ececed'
+  },
+  footerSpacer: {
+    height: 32
+  },
+  emptyState: {
+    marginTop: 64,
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: 'System',
+    color: '#1f1f1f'
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    fontFamily: 'System',
+    color: '#6e6e73',
+    textAlign: 'center'
+  },
+  headerIconButton: {
+    padding: 6
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24
+  },
+  modalCard: {
+    width: Dimensions.get('window').width - 48,
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+    gap: 18
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontFamily: 'System',
+    fontWeight: '600',
+    color: '#1f1f1f'
+  },
+  modalContent: {
+    gap: 6
+  },
+  modalName: {
+    fontSize: 20,
+    fontFamily: 'System',
+    fontWeight: '700',
+    color: '#050505'
+  },
+  modalMeta: {
+    fontSize: 14,
+    fontFamily: 'System',
+    color: '#5c5c5c'
+  },
+  modalMetaBold: {
+    fontSize: 16,
+    fontFamily: 'System',
+    fontWeight: '600',
+    color: '#1f1f1f'
+  },
+  modalButton: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center'
+  },
+  modalPrimaryButton: {
+    backgroundColor: '#27ae60'
+  },
+  modalPrimaryLabel: {
+    fontSize: 16,
+    fontFamily: 'System',
+    fontWeight: '600',
+    color: '#ffffff'
+  },
+  modalSecondaryButton: {
+    backgroundColor: '#f4f4f6'
+  },
+  modalSecondaryLabel: {
+    fontSize: 16,
+    fontFamily: 'System',
+    fontWeight: '600',
+    color: '#1f1f1f'
+  },
+  modalCancel: {
+    marginTop: 4,
+    alignItems: 'center'
+  },
+  modalCancelLabel: {
+    fontSize: 15,
+    fontFamily: 'System',
+    fontWeight: '500',
+    color: '#007aff'
+  }
+});
