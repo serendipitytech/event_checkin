@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import * as Linking from 'expo-linking';
+import * as ExpoLinking from 'expo-linking';
 import { getSupabaseClient } from './supabase';
 import { REDIRECT_URL, DEEP_LINK_SCHEME, getDebugInfo } from '../config/env';
 
@@ -50,7 +50,7 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
                   text: 'Open Email App',
                   onPress: () => {
                     // Try to open the default email app
-                    Linking.openURL('mailto:');
+                    ExpoLinking.openURL('mailto:');
                   },
                 },
                 {
@@ -113,14 +113,14 @@ export const handleDeepLink = async (url: string): Promise<void> => {
 export const initializeDeepLinkHandling = async (): Promise<void> => {
   try {
     // Check if app was opened with a deep link
-    const initialUrl = await Linking.getInitialURL();
+    const initialUrl = await ExpoLinking.getInitialURL();
     if (initialUrl) {
       console.log('App opened with initial URL:', initialUrl);
       await handleDeepLink(initialUrl);
     }
 
     // Listen for deep links while app is running
-    const subscription = Linking.addEventListener('url', (event) => {
+    const subscription = ExpoLinking.addEventListener('url', (event) => {
       console.log('Deep link received while app running:', event.url);
       handleDeepLink(event.url);
     });
