@@ -15,6 +15,7 @@ import {
 } from '../../services/attendeeEvents';
 import { useSupabase } from '../../hooks/useSupabase';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useRealtimeConnection } from '../../hooks/useRealtime';
 import { describeRole, normalizeRole } from '../../services/permissions';
 
 const AUTO_REFRESH_OPTIONS = [
@@ -42,6 +43,7 @@ export default function AdminScreen() {
     describeRole,
     currentRole
   } = usePermissions();
+  const { hasAnyConnection, hasErrors, totalReconnectAttempts, connectionCount } = useRealtimeConnection();
   const [autoRefreshInterval, setAutoRefreshIntervalState] = useState<number>(
     getAutoRefreshInterval()
   );
@@ -202,6 +204,32 @@ export default function AdminScreen() {
             );
           })}
         </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Real-time Status</Text>
+        <Text style={styles.cardSubtitle}>
+          Monitor real-time connection status and sync across devices.
+        </Text>
+        <View style={styles.statusRow}>
+          <Text style={styles.statusLabel}>Connection Status</Text>
+          <View style={styles.statusValue}>
+            <View style={[styles.statusIndicator, hasAnyConnection ? styles.statusConnected : styles.statusDisconnected]} />
+            <Text style={styles.statusText}>
+              {hasAnyConnection ? 'Connected' : 'Disconnected'}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.statusRow}>
+          <Text style={styles.statusLabel}>Active Connections</Text>
+          <Text style={styles.statusValueText}>{connectionCount}</Text>
+        </View>
+        {hasErrors && (
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Reconnect Attempts</Text>
+            <Text style={styles.statusValueText}>{totalReconnectAttempts}</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.card}>
@@ -454,5 +482,41 @@ const styles = StyleSheet.create({
   },
   autoRefreshChipLabelActive: {
     color: '#ffffff'
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8
+  },
+  statusLabel: {
+    fontSize: 14,
+    color: '#6e6e73'
+  },
+  statusValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  statusValueText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f1f1f'
+  },
+  statusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4
+  },
+  statusConnected: {
+    backgroundColor: '#27ae60'
+  },
+  statusDisconnected: {
+    backgroundColor: '#e74c3c'
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f1f1f'
   }
 });

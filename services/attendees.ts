@@ -1,6 +1,7 @@
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 import { getSupabaseClient } from './supabase';
+import { subscribeToAttendees as subscribeToAttendeesRealtime } from './realtime';
 
 export type AttendeeStatus = 'pending' | 'checked-in';
 
@@ -87,36 +88,32 @@ export const subscribeAttendees = (
   eventId: string,
   onChange: (change: AttendeeChange) => void
 ) => {
-  const supabase = getSupabaseClient();
-  const channel = supabase
-    .channel(`attendees-${eventId}`)
-    .on<AttendeeRecord>(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'attendees',
-        filter: `event_id=eq.${eventId}`
+  return subscribeToAttendeesRealtime(
+    {
+      eventId,
+      onError: (error) => {
+        console.error('Real-time attendee subscription error:', error);
       },
-      (payload) => {
-        const attendee = mapRecordToAttendee(
-          (payload.eventType === 'DELETE' ? payload.old : payload.new) as
-            | AttendeeRecord
-            | null
-        );
+      onStatusChange: (status) => {
+        console.log('Real-time attendee subscription status:', status);
+      },
+      reconnectAttempts: 5,
+      reconnectDelay: 2000,
+    },
+    (payload) => {
+      const attendee = mapRecordToAttendee(
+        (payload.eventType === 'DELETE' ? payload.old : payload.new) as
+          | AttendeeRecord
+          | null
+      );
 
-        onChange({
-          type: payload.eventType,
-          attendee,
-          payload: payload as RealtimePostgresChangesPayload<AttendeeRecord>
-        });
-      }
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
+      onChange({
+        type: payload.eventType,
+        attendee,
+        payload: payload as RealtimePostgresChangesPayload<AttendeeRecord>
+      });
+    }
+  );
 };
 
 export const toggleCheckin = async (
