@@ -11,8 +11,9 @@ The app uses a centralized configuration system that automatically selects the a
 ### Development Environment
 
 In development, the app automatically uses these redirect URLs:
-- **Expo Go**: `exp://127.0.0.1:8081`
-- **Development Build**: `http://localhost:3000`
+- **Expo Go (Local)**: `exp://127.0.0.1:8081/auth/callback`
+- **Expo Go (Tunnel)**: `exp://u3m58lo-serendipitytech-8081.exp.direct/auth/callback`
+- **Development Build**: `expo-checkin://auth/callback`
 
 ### Production Environment
 
@@ -28,8 +29,9 @@ In your Supabase project dashboard, navigate to **Authentication > URL Configura
 
 #### For Development
 ```
-exp://127.0.0.1:8081
-http://localhost:3000
+exp://127.0.0.1:8081/auth/callback
+exp://u3m58lo-serendipitytech-8081.exp.direct/auth/callback
+expo-checkin://auth/callback
 ```
 
 #### For Production
@@ -99,19 +101,15 @@ export default {
 
 ### 1. Centralized Configuration
 
-The `config/env.ts` file automatically detects the environment and selects appropriate URLs:
+The `config/env.ts` file uses Expo's `Linking.createURL()` to automatically generate the correct URL:
 
 ```typescript
 const getRedirectUrl = () => {
-  if (isDev) {
-    if (isExpoGo) {
-      return 'exp://127.0.0.1:8081';
-    } else {
-      return 'http://localhost:3000';
-    }
-  } else {
-    return 'expo-checkin://auth/callback';
-  }
+  // Use Expo's Linking.createURL which automatically handles:
+  // - Dev tunnel URLs (exp://u3m58lo-serendipitytech-8081.exp.direct/auth/callback)
+  // - Localhost URLs (exp://127.0.0.1:8081/auth/callback)
+  // - Production URLs (expo-checkin://auth/callback)
+  return Linking.createURL('/auth/callback');
 };
 ```
 
@@ -120,10 +118,13 @@ const getRedirectUrl = () => {
 The auth service uses the dynamic configuration:
 
 ```typescript
+// Get the dynamic redirect URL using Expo's Linking.createURL
+const redirectTo = Linking.createURL('/auth/callback');
+
 const { error } = await supabase.auth.signInWithOtp({
   email: email.trim(),
   options: {
-    emailRedirectTo: REDIRECT_URL, // Dynamically selected
+    emailRedirectTo: redirectTo, // Automatically handles tunnel URLs
   },
 });
 ```

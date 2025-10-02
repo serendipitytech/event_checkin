@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import * as Linking from 'expo-linking';
 
 // Environment detection
 const isDev = __DEV__;
@@ -27,21 +28,13 @@ const getSupabaseConfig = () => {
   return { supabaseUrl, supabaseAnonKey };
 };
 
-// Dynamic redirect URL configuration
+// Dynamic redirect URL configuration using Expo's Linking.createURL
 const getRedirectUrl = () => {
-  if (isDev) {
-    // Development environment
-    if (isExpoGo) {
-      // Expo Go app
-      return 'exp://127.0.0.1:8081';
-    } else {
-      // Development build
-      return 'http://localhost:3000';
-    }
-  } else {
-    // Production environment
-    return 'expo-checkin://auth/callback';
-  }
+  // Use Expo's Linking.createURL which automatically handles:
+  // - Dev tunnel URLs (exp://u3m58lo-serendipitytech-8081.exp.direct/auth/callback)
+  // - Localhost URLs (exp://127.0.0.1:8081/auth/callback)
+  // - Production URLs (expo-checkin://auth/callback)
+  return Linking.createURL('/auth/callback');
 };
 
 // Deep link scheme

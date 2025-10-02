@@ -6,11 +6,16 @@ import { REDIRECT_URL, DEEP_LINK_SCHEME, getDebugInfo } from '../config/env';
 export const launchMagicLinkSignIn = async (): Promise<void> => {
   const supabase = getSupabaseClient();
   
+  // Get the dynamic redirect URL using Expo's Linking.createURL
+  const redirectTo = ExpoLinking.createURL('/auth/callback');
+  
   // Log debug information in development
   const debugInfo = getDebugInfo();
   if (debugInfo) {
     console.log('Auth Debug Info:', debugInfo);
   }
+  
+  console.log('Magic link redirect URL:', redirectTo);
   
   // For now, we'll use a simple email prompt
   // In a production app, you might want a more sophisticated UI
@@ -31,10 +36,13 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
           }
 
           try {
+            console.log('Sending magic link to:', email.trim());
+            console.log('Using redirect URL:', redirectTo);
+            
             const { error } = await supabase.auth.signInWithOtp({
               email: email.trim(),
               options: {
-                emailRedirectTo: REDIRECT_URL,
+                emailRedirectTo: redirectTo,
               },
             });
 
@@ -104,7 +112,8 @@ export const handleDeepLink = async (url: string): Promise<void> => {
   console.log('Received deep link:', url);
   
   // Check if this is an auth callback
-  if (url.includes('auth/callback') || url.includes(DEEP_LINK_SCHEME)) {
+  // This will work with both tunnel URLs and production URLs
+  if (url.includes('auth/callback')) {
     await handleAuthCallback(url);
   }
 };
