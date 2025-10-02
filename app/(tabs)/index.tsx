@@ -45,6 +45,7 @@ import {
   RefreshOptions
 } from '../../services/attendeeEvents';
 import { useSupabase } from '../../hooks/useSupabase';
+import { usePermissions } from '../../hooks/usePermissions';
 import ActionButton from '../../components/ActionButton';
 
 const segments: AttendeeStatus[] = ['pending', 'checked-in'];
@@ -83,6 +84,7 @@ export default function CheckInScreen() {
     loading: supabaseLoading,
     signIn
   } = useSupabase();
+  const { canToggleCheckins, canViewAttendees } = usePermissions();
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [activeStatus, setActiveStatus] = useState<AttendeeStatus>('pending');
   const [searchTerm, setSearchTerm] = useState('');
@@ -291,6 +293,11 @@ export default function CheckInScreen() {
 
   const handleConfirm = useCallback(
     async (attendee: Attendee, makeCheckedIn: boolean) => {
+      if (!canToggleCheckins) {
+        Alert.alert('Permission Denied', 'You do not have permission to check in attendees.');
+        return;
+      }
+
       try {
         await toggleCheckin(attendee.id, makeCheckedIn);
         setError(null);
@@ -306,11 +313,16 @@ export default function CheckInScreen() {
         Alert.alert('Update failed', 'Please try again.');
       }
     },
-    []
+    [canToggleCheckins]
   );
 
   const handleGroupAction = useCallback(
     async (attendee: Attendee, scope: 'group' | 'table') => {
+      if (!canToggleCheckins) {
+        Alert.alert('Permission Denied', 'You do not have permission to check in attendees.');
+        return;
+      }
+
       const normalizedGroup = attendee.groupName.toLowerCase();
       const normalizedTable = attendee.tableNumber.toLowerCase();
 
@@ -338,7 +350,7 @@ export default function CheckInScreen() {
         Alert.alert('Group check-in failed', 'Please try again.');
       }
     },
-    [attendees, loadAttendees]
+    [attendees, loadAttendees, canToggleCheckins]
   );
 
   const toggleSort = useCallback(
@@ -524,6 +536,18 @@ export default function CheckInScreen() {
         <Text style={styles.authTitle}>Choose an event</Text>
         <Text style={styles.authSubtitle}>
           Use the Admin tab to select which event you want to manage.
+        </Text>
+      </View>
+    );
+  }
+
+  if (!canViewAttendees) {
+    return (
+      <View style={styles.authContainer}>
+        <Ionicons name="lock-closed-outline" size={40} color="#8e8e93" accessibilityElementsHidden />
+        <Text style={styles.authTitle}>Access Restricted</Text>
+        <Text style={styles.authSubtitle}>
+          You do not have permission to view attendees for this event. Contact an event manager for access.
         </Text>
       </View>
     );

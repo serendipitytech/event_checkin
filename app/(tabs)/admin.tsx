@@ -14,7 +14,8 @@ import {
   setAutoRefreshInterval
 } from '../../services/attendeeEvents';
 import { useSupabase } from '../../hooks/useSupabase';
-import { canManageAttendees, describeRole, normalizeRole } from '../../services/permissions';
+import { usePermissions } from '../../hooks/usePermissions';
+import { describeRole, normalizeRole } from '../../services/permissions';
 
 const AUTO_REFRESH_OPTIONS = [
   { label: 'Off', value: 0 },
@@ -32,8 +33,15 @@ export default function AdminScreen() {
     setSelectedEventId,
     loading: supabaseLoading
   } = useSupabase();
-  const currentRole = normalizeRole(selectedEvent?.role);
-  const canManageRoster = canManageAttendees(currentRole);
+  const {
+    canManageAttendees: canManageRoster,
+    canCreateEvents,
+    canInviteUsers,
+    canDeleteEvents,
+    canManageOrganization,
+    describeRole,
+    currentRole
+  } = usePermissions();
   const [autoRefreshInterval, setAutoRefreshIntervalState] = useState<number>(
     getAutoRefreshInterval()
   );
@@ -213,7 +221,7 @@ export default function AdminScreen() {
 
         <View style={styles.eventInfoRow}>
           <Text style={styles.eventInfoLabel}>Your Role</Text>
-          <Text style={styles.eventInfoValue}>{describeRole(currentRole)}</Text>
+          <Text style={styles.eventInfoValue}>{describeRole()}</Text>
         </View>
 
         <Text style={styles.autoRefreshLabel}>Auto Refresh</Text>
@@ -238,13 +246,115 @@ export default function AdminScreen() {
         </View>
       </View>
 
+      {canCreateEvents && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Event Management</Text>
+          <Text style={styles.cardSubtitle}>
+            Create new events and manage existing ones.
+          </Text>
+          <View style={styles.actions}>
+            <ActionButton
+              label="Create New Event"
+              variant="primary"
+              onPress={() => {
+                Alert.alert(
+                  'Create Event',
+                  'Event creation will be implemented in the next phase.',
+                  [{ text: 'OK' }]
+                );
+              }}
+            />
+            {canDeleteEvents && selectedEvent && (
+              <ActionButton
+                label="Delete Current Event"
+                variant="danger"
+                onPress={() => {
+                  Alert.alert(
+                    'Delete Event',
+                    `Are you sure you want to delete "${selectedEvent.eventName}"? This action cannot be undone.`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => {
+                          Alert.alert(
+                            'Delete Event',
+                            'Event deletion will be implemented in the next phase.'
+                          );
+                        }
+                      }
+                    ]
+                  );
+                }}
+              />
+            )}
+          </View>
+        </View>
+      )}
+
+      {canInviteUsers && selectedEvent && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>User Management</Text>
+          <Text style={styles.cardSubtitle}>
+            Invite users to collaborate on this event.
+          </Text>
+          <View style={styles.actions}>
+            <ActionButton
+              label="Invite User"
+              variant="secondary"
+              onPress={() => {
+                Alert.alert(
+                  'Invite User',
+                  'User invitation will be implemented in the next phase.',
+                  [{ text: 'OK' }]
+                );
+              }}
+            />
+            <ActionButton
+              label="Manage Users"
+              variant="secondary"
+              onPress={() => {
+                Alert.alert(
+                  'Manage Users',
+                  'User management will be implemented in the next phase.',
+                  [{ text: 'OK' }]
+                );
+              }}
+            />
+          </View>
+        </View>
+      )}
+
+      {canManageOrganization && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Organization Settings</Text>
+          <Text style={styles.cardSubtitle}>
+            Manage organization-wide settings and permissions.
+          </Text>
+          <View style={styles.actions}>
+            <ActionButton
+              label="Organization Settings"
+              variant="secondary"
+              onPress={() => {
+                Alert.alert(
+                  'Organization Settings',
+                  'Organization management will be implemented in the next phase.',
+                  [{ text: 'OK' }]
+                );
+              }}
+            />
+          </View>
+        </View>
+      )}
+
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Next Steps</Text>
         <Text style={styles.cardSubtitle}>
           - Integrate a file/document picker for roster uploads.
           {'\n'}- Confirm Google Sheet proxy usage and authentication.
-          {'\n'}- Mirror additional admin toggles from the web UI (compact
-          stats, preferences, etc.).
+          {'\n'}- Implement event creation and user invitation flows.
+          {'\n'}- Add role-based UI components and permissions.
         </Text>
       </View>
     </ScrollView>
