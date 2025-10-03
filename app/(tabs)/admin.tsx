@@ -20,6 +20,7 @@ import { describeRole, normalizeRole } from '../../services/permissions';
 import { RosterImportModal } from '../../components/RosterImportModal';
 import { CreateEventModal } from '../../components/CreateEventModal';
 import { InviteUserModal } from '../../components/InviteUserModal';
+import { EventSelectorModal } from '../../components/EventSelectorModal';
 import type { ImportResult } from '../../services/rosterImport';
 
 const AUTO_REFRESH_OPTIONS = [
@@ -55,6 +56,7 @@ export default function AdminScreen() {
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [createEventModalVisible, setCreateEventModalVisible] = useState(false);
   const [inviteUserModalVisible, setInviteUserModalVisible] = useState(false);
+  const [eventSelectorModalVisible, setEventSelectorModalVisible] = useState(false);
 
   useEffect(() => {
     const remove = addAutoRefreshListener((interval) => {
@@ -169,17 +171,12 @@ export default function AdminScreen() {
       return;
     }
 
-    Alert.alert(
-      'Select Event',
-      'Choose which event to manage.',
-      [
-        ...events.map((event) => ({
-          text: event.eventName,
-          onPress: () => setSelectedEventId(event.eventId)
-        })),
-        { text: 'Cancel', style: 'cancel' }
-      ]
-    );
+    setEventSelectorModalVisible(true);
+  };
+
+  const handleEventSelection = (eventId: string) => {
+    setSelectedEventId(eventId);
+    // The modal will close automatically after selection
   };
 
   return (
@@ -431,6 +428,15 @@ export default function AdminScreen() {
         userRole={currentRole}
         onClose={() => setInviteUserModalVisible(false)}
         onSuccess={handleInviteUserSuccess}
+      />
+
+      <EventSelectorModal
+        visible={eventSelectorModalVisible}
+        events={events}
+        selectedEventId={selectedEvent?.eventId || null}
+        loading={supabaseLoading}
+        onClose={() => setEventSelectorModalVisible(false)}
+        onSelectEvent={handleEventSelection}
       />
 
       <View style={styles.card}>
