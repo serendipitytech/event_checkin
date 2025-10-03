@@ -21,6 +21,23 @@ export const inviteUserToEvent = async (
       throw new Error('You must be signed in to invite users');
     }
 
+    // Get event details to include org information
+    const { data: eventData, error: eventError } = await supabase
+      .from('events')
+      .select(`
+        id,
+        name,
+        org_id,
+        organizations!inner(name)
+      `)
+      .eq('id', eventId)
+      .single();
+
+    if (eventError) {
+      console.error('Error fetching event details:', eventError);
+      throw new Error('Failed to fetch event details');
+    }
+
     // Call the Edge Function
     const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/invite_user`, {
       method: 'POST',
@@ -32,7 +49,9 @@ export const inviteUserToEvent = async (
       body: JSON.stringify({ 
         eventId, 
         email: email.trim(), 
-        role 
+        role,
+        orgId: eventData.org_id,
+        orgName: eventData.organizations.name
       }),
     });
 
@@ -65,6 +84,23 @@ export const resendInvitation = async (
       throw new Error('You must be signed in to resend invitations');
     }
 
+    // Get event details to include org information
+    const { data: eventData, error: eventError } = await supabase
+      .from('events')
+      .select(`
+        id,
+        name,
+        org_id,
+        organizations!inner(name)
+      `)
+      .eq('id', eventId)
+      .single();
+
+    if (eventError) {
+      console.error('Error fetching event details for resend:', eventError);
+      throw new Error('Failed to fetch event details');
+    }
+
     // Call the Edge Function with resend flag
     const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/invite_user`, {
       method: 'POST',
@@ -77,6 +113,8 @@ export const resendInvitation = async (
         eventId, 
         email: email.trim(), 
         role: 'checker', // Default role for resend
+        orgId: eventData.org_id,
+        orgName: eventData.organizations.name,
         resend: true
       }),
     });
