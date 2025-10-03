@@ -19,13 +19,20 @@ Go to: **Supabase Dashboard** → **Your Project** → **Authentication** → **
 exp://127.0.0.1:8081/--/auth/callback
 exp://*.exp.direct/--/auth/callback
 expo-checkin://auth/callback
+http://localhost:3000/auth/callback
 ```
 
+**Required URLs for all environments:**
+- `exp://127.0.0.1:8081/--/auth/callback` - Local Expo Go
+- `exp://*.exp.direct/--/auth/callback` - Tunnel Expo Go (wildcard for all tunnel variations)
+- `expo-checkin://auth/callback` - Production custom scheme
+- `http://localhost:3000/auth/callback` - Web development fallback
+
 **CRITICAL NOTES**: 
-- ✅ **Include** the `--` path segment (this is required by Expo Go)
+- ✅ **Include** the `--` path segment for Expo Go URLs (required)
 - ✅ **Use wildcards** (`*`) for exp.direct URLs to catch all tunnel variations
-- ❌ **Remove** any `http://localhost:3000` URLs if they exist
-- ❌ **Remove** any URLs without the `--` path segment
+- ✅ **Include** `http://localhost:3000/auth/callback` for web development fallback
+- ❌ **Remove** any URLs without the `--` path segment for Expo URLs
 
 #### Expected URL Formats
 
@@ -73,6 +80,14 @@ expo-checkin://auth/callback
 1. Verify console shows URL with `--` segment
 2. Update Supabase redirect URLs to include `--` segment
 3. Test with fresh magic link
+
+#### Issue: Deep link handler rejects Supabase OTP links
+**Cause**: Deep link handler expects specific URL patterns
+**Fix**: 
+1. Check console logs for "Not an auth callback URL" message
+2. Verify URL contains `/auth/callback`, `--/auth/callback`, `verify`, or `supabase.co` with `token`
+3. Update Supabase redirect URLs to match expected patterns
+4. Ensure all required URLs are in Supabase dashboard
 
 ### 3. Testing Your Configuration
 

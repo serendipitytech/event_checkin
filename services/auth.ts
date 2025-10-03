@@ -56,7 +56,7 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
             
             // CRITICAL: Use the fresh redirectTo URL directly
             // This should be exp://xxx.exp.direct/--/auth/callback in development
-            const { error } = await supabase.auth.signInWithOtp({
+            const { data, error } = await supabase.auth.signInWithOtp({
               email: email.trim(),
               options: {
                 emailRedirectTo: redirectTo,
@@ -65,6 +65,12 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
 
             if (error) {
               throw error;
+            }
+
+            // Validate that Supabase accepted our redirect URL
+            if (data && !redirectTo.includes('/auth/callback')) {
+              console.warn('⚠️ WARNING: Supabase may not have accepted our redirect URL');
+              console.warn('Expected URL format with /auth/callback, got:', redirectTo);
             }
 
             Alert.alert(
@@ -132,14 +138,21 @@ export const handleDeepLink = async (url: string): Promise<void> => {
   console.log('- Contains exp.direct:', url.includes('.exp.direct'));
   console.log('- Contains auth/callback:', url.includes('auth/callback'));
   console.log('- Contains expo-checkin:', url.includes('expo-checkin'));
+  console.log('- Contains supabase.co:', url.includes('supabase.co'));
   
-  // Check if this is an auth callback
-  // This will work with both tunnel URLs and production URLs
-  if (url.includes('auth/callback')) {
+  // Check if this is an auth callback - be more flexible with URL patterns
+  const isAuthCallback = 
+    url.includes('auth/callback') || 
+    url.includes('--/auth/callback') ||
+    url.includes('verify') ||
+    (url.includes('supabase.co') && url.includes('token'));
+  
+  if (isAuthCallback) {
     console.log('✅ Auth callback detected, processing...');
     await handleAuthCallback(url);
   } else {
     console.log('❌ Not an auth callback URL');
+    console.log('URL does not match expected auth callback patterns');
   }
 };
 
