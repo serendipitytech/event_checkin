@@ -5,10 +5,11 @@ A comprehensive event check-in application built with Expo and Supabase, featuri
 ## 🚀 Features
 
 ### ✅ Authentication & Security
-- **Magic Link Authentication** – Secure email-based sign-in with deep linking
-- **Session Management** – Automatic session restoration and persistence
+- **Magic Link Authentication** – Secure email-based sign-in with Supabase v2
+- **Hash Fragment Token Parsing** – Handles tokens in URL hash fragments (#access_token=...)
+- **Deep Link Support** – Seamless authentication flow with tunnel URL support
+- **Session Management** – Automatic session restoration with `setSession()`
 - **Role-Based Access Control** – Granular permissions with role hierarchy
-- **Deep Link Support** – Seamless authentication flow with `expo-checkin://auth/callback`
 
 ### ✅ Real-Time Synchronization
 - **Multi-Device Sync** – Real-time attendee updates across all connected devices
@@ -37,14 +38,17 @@ A comprehensive event check-in application built with Expo and Supabase, featuri
 ## 🏗️ Architecture
 
 ### Core Services
-- **`services/supabase.ts`** – Supabase client singleton with auth configuration
-- **`services/auth.ts`** – Magic link authentication and deep link handling
+- **`services/supabase.ts`** – Supabase client singleton with v2 auth configuration
+- **`services/auth.ts`** – Magic link authentication with hash fragment token parsing
+- **`utils/verifyAuthUrl.ts`** – URL generation verification and debugging utilities
+- **`config/env.ts`** – Centralized environment configuration with dynamic redirect URLs
 - **`services/permissions.ts`** – Role-based access control and permission helpers
 - **`services/realtime.ts`** – Enhanced real-time subscription management
 - **`services/eventManagement.ts`** – Event creation, user invitations, and role management
 - **`services/rosterImport.ts`** – CSV and Google Sheets import functionality
 
 ### UI Components
+- **`app/auth/callback.tsx`** – Auth callback screen with loading UI and auto-redirect
 - **`components/RosterImportModal.tsx`** – File picker and Google Sheets import UI
 - **`components/CreateEventModal.tsx`** – Event creation with organization setup
 - **`components/InviteUserModal.tsx`** – User invitation with role selection
@@ -88,7 +92,7 @@ The app implements a comprehensive role-based access control system:
    - Create a new Supabase project
    - Run the SQL schema from `checkin_supabase_initial.sql`
    - Set up Row Level Security (RLS) policies
-   - Configure authentication settings
+   - Configure authentication settings (see `docs/supabase-dashboard-setup.md`)
 
 4. **Set up environment variables**
    ```bash
@@ -198,7 +202,9 @@ Ensure production environment variables are configured:
 
 ## 📚 Documentation
 
+- **Supabase Setup** – See `docs/supabase-dashboard-setup.md` for complete auth configuration
 - **Integration Plan** – See `docs/supabase-integration-plan.md`
+- **Troubleshooting** – See `docs/troubleshooting-magic-links.md` for auth issues
 - **API Documentation** – Supabase functions and RPCs
 - **Component Documentation** – UI component usage and props
 
