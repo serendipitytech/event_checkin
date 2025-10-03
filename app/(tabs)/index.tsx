@@ -81,6 +81,8 @@ export default function CheckInScreen() {
   const {
     session,
     selectedEvent,
+    events,
+    setSelectedEventId,
     loading: supabaseLoading,
     signIn
   } = useSupabase();
@@ -530,12 +532,58 @@ export default function CheckInScreen() {
   }
 
   if (!selectedEvent) {
+    // No events available
+    if (events.length === 0) {
+      return (
+        <View style={styles.authContainer}>
+          <Ionicons name="calendar-outline" size={40} color="#8e8e93" accessibilityElementsHidden />
+          <Text style={styles.authTitle}>No events assigned to your account</Text>
+          <Text style={styles.authSubtitle}>
+            Contact an event manager to get access to events.
+          </Text>
+        </View>
+      );
+    }
+
+    // Multiple events - show selection
+    if (events.length > 1) {
+      return (
+        <View style={styles.authContainer}>
+          <Ionicons name="calendar-outline" size={40} color="#8e8e93" accessibilityElementsHidden />
+          <Text style={styles.authTitle}>Choose an event</Text>
+          <Text style={styles.authSubtitle}>
+            Select which event you want to manage:
+          </Text>
+          <View style={styles.eventList}>
+            {events.map((event) => (
+              <TouchableOpacity
+                key={event.eventId}
+                style={styles.eventItem}
+                onPress={() => setSelectedEventId(event.eventId)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.eventInfo}>
+                  <Text style={styles.eventName}>{event.eventName}</Text>
+                  <Text style={styles.eventOrg}>{event.orgName}</Text>
+                  {event.role && (
+                    <Text style={styles.eventRole}>Role: {event.role}</Text>
+                  )}
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#8e8e93" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
+    // Single event - should auto-select, but just in case
     return (
       <View style={styles.authContainer}>
         <Ionicons name="calendar-outline" size={40} color="#8e8e93" accessibilityElementsHidden />
-        <Text style={styles.authTitle}>Choose an event</Text>
+        <Text style={styles.authTitle}>Loading event...</Text>
         <Text style={styles.authSubtitle}>
-          Use the Admin tab to select which event you want to manage.
+          Setting up your event access.
         </Text>
       </View>
     );
@@ -1038,5 +1086,47 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     fontWeight: '500',
     color: '#007aff'
+  },
+  eventList: {
+    width: '100%',
+    marginTop: 20,
+    gap: 12
+  },
+  eventItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: '#e5e5e7',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2
+  },
+  eventInfo: {
+    flex: 1,
+    gap: 4
+  },
+  eventName: {
+    fontSize: 16,
+    fontFamily: 'System',
+    fontWeight: '600',
+    color: '#1f1f1f'
+  },
+  eventOrg: {
+    fontSize: 14,
+    fontFamily: 'System',
+    color: '#6e6e73'
+  },
+  eventRole: {
+    fontSize: 12,
+    fontFamily: 'System',
+    color: '#007aff',
+    fontWeight: '500'
   }
 });

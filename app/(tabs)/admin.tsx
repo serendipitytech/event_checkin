@@ -36,7 +36,8 @@ export default function AdminScreen() {
     events,
     selectedEvent,
     setSelectedEventId,
-    loading: supabaseLoading
+    loading: supabaseLoading,
+    signOut
   } = useSupabase();
   const {
     canManageAttendees: canManageRoster,
@@ -431,6 +432,35 @@ export default function AdminScreen() {
         onClose={() => setInviteUserModalVisible(false)}
         onSuccess={handleInviteUserSuccess}
       />
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Account</Text>
+        <Text style={styles.cardSubtitle}>
+          Sign out of your account.
+        </Text>
+        <View style={styles.actions}>
+          <ActionButton
+            label="Sign Out"
+            variant="danger"
+            onPress={() => {
+              Alert.alert(
+                'Sign Out',
+                'Are you sure you want to sign out?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Sign Out',
+                    style: 'destructive',
+                    onPress: () => {
+                      void signOut();
+                    }
+                  }
+                ]
+              );
+            }}
+          />
+        </View>
+      </View>
     </ScrollView>
   );
 }
