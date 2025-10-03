@@ -63,7 +63,7 @@ export const canEditAttendees = (role: EventRole): boolean => {
 
 export const canInviteUsers = (role: EventRole): boolean => {
   if (!role) return false;
-  return role === 'owner' || role === 'admin';
+  return role === 'manager';
 };
 
 export const canDeleteEvents = (role: EventRole): boolean => {

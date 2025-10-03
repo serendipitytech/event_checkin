@@ -293,6 +293,7 @@ export default function AdminScreen() {
         {(() => {
           const shouldShowInviteButton = canInviteUsers && selectedEvent;
           console.log('Invite button rendered:', shouldShowInviteButton, 'role=', currentRole, 'selectedEvent=', selectedEvent?.eventName);
+          console.log("Invite button final check:", { canInviteUsers, role: currentRole, selectedEvent: selectedEvent?.eventName });
           
           if (shouldShowInviteButton) {
             return (
