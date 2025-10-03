@@ -28,6 +28,8 @@ http://localhost:3000/auth/callback
 - `expo-checkin://auth/callback` - Production custom scheme
 - `http://localhost:3000/auth/callback` - Web development fallback
 
+**⚠️ IMPORTANT**: Remove any extra redirect URLs. Keep only these 4 URLs.
+
 **CRITICAL NOTES**: 
 - ✅ **Include** the `--` path segment for Expo Go URLs (required)
 - ✅ **Use wildcards** (`*`) for exp.direct URLs to catch all tunnel variations
@@ -96,15 +98,27 @@ expo-checkin://auth/callback
    npx expo start --tunnel
    ```
 
-2. **Check console logs** when testing magic link:
+2. **Trigger login** and check console logs:
    ```
-   Generated URL: exp://u3m58lo-serendipitytech-8081.exp.direct/--/auth/callback
-   ✅ TUNNEL URL DETECTED - This will work on physical devices
+   🔗 Forcing redirectTo: exp://u3m58lo-serendipitytech-8081.exp.direct/--/auth/callback
+   === SENDING MAGIC LINK ===
+   Email: your@email.com
+   🔗 Forcing redirectTo: exp://u3m58lo-serendipitytech-8081.exp.direct/--/auth/callback
    ```
 
-3. **Verify the magic link email** contains the tunnel URL with `--` segment, not localhost or supabase.co
+3. **Verify the magic link email** contains the exact same URL:
+   ```
+   exp://u3m58lo-serendipitytech-8081.exp.direct/--/auth/callback
+   ```
 
-4. **Test the complete flow**:
+4. **Click the magic link** and check console logs:
+   ```
+   === RECEIVED DEEP LINK ===
+   URL: exp://u3m58lo-serendipitytech-8081.exp.direct/--/auth/callback
+   ✅ Auth callback detected, processing...
+   ```
+
+5. **Test the complete flow**:
    - Click magic link in email
    - Should open Expo Go app (not Safari)
    - Should complete authentication

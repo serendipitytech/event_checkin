@@ -7,9 +7,9 @@ import { verifyAuthUrl, getAuthRedirectUrl } from '../utils/verifyAuthUrl';
 export const launchMagicLinkSignIn = async (): Promise<void> => {
   const supabase = getSupabaseClient();
   
-  // CRITICAL: Get the current auth redirect URL - this handles tunnel URLs automatically
-  // This MUST generate exp://xxx.exp.direct/--/auth/callback format in development
-  const redirectTo = getAuthRedirectUrl();
+  // CRITICAL: Force the correct redirect URL using Linking.createURL
+  const redirectTo = ExpoLinking.createURL('/auth/callback');
+  console.log('🔗 Forcing redirectTo:', redirectTo);
   
   // Verify the URL generation is working correctly
   const verifiedUrl = verifyAuthUrl();
@@ -36,9 +36,9 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
         text: 'Cancel',
         style: 'cancel',
       },
-      {
-        text: 'Send Link',
-        onPress: async (email) => {
+              {
+                text: 'Send Link',
+                onPress: async (email?: string) => {
           if (!email || !email.trim()) {
             Alert.alert('Error', 'Please enter a valid email address');
             return;
@@ -47,23 +47,23 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
           try {
             console.log('=== SENDING MAGIC LINK ===');
             console.log('Email:', email.trim());
-            console.log('Redirect URL:', redirectTo);
+            console.log('🔗 Forcing redirectTo:', redirectTo);
             console.log('URL format check:');
             console.log('- Contains exp.direct:', redirectTo.includes('.exp.direct'));
             console.log('- Contains localhost:', redirectTo.includes('localhost'));
             console.log('- Contains supabase.co:', redirectTo.includes('supabase.co'));
             console.log('- Contains expo-checkin:', redirectTo.includes('expo-checkin'));
             
-            // CRITICAL: Use the fresh redirectTo URL directly
-            // This should be exp://xxx.exp.direct/--/auth/callback in development
+            // CRITICAL: Force the correct redirect URL - this guarantees Supabase sends the right link
             const { data, error } = await supabase.auth.signInWithOtp({
               email: email.trim(),
               options: {
-                emailRedirectTo: redirectTo,
+                emailRedirectTo: redirectTo, // ✅ force correct redirect
               },
             });
 
             if (error) {
+              console.error('❌ Supabase OTP error:', error.message);
               throw error;
             }
 
@@ -112,14 +112,36 @@ export const handleAuthCallback = async (url: string): Promise<void> => {
   try {
     console.log('Handling auth callback with URL:', url);
     
-    const { data, error } = await supabase.auth.getSessionFromUrl(url);
+    // Parse the URL to extract auth tokens
+    const urlObj = new URL(url);
+    const accessToken = urlObj.searchParams.get('access_token');
+    const refreshToken = urlObj.searchParams.get('refresh_token');
     
-    if (error) {
-      throw error;
-    }
-    
-    if (data.session) {
-      Alert.alert('Success', 'You have been signed in successfully!');
+    if (accessToken && refreshToken) {
+      // Set the session with the tokens from the URL
+      const { data, error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data.session) {
+        Alert.alert('Success', 'You have been signed in successfully!');
+      }
+    } else {
+      // Fallback to getting current session
+      const { data, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data.session) {
+        Alert.alert('Success', 'You have been signed in successfully!');
+      }
     }
   } catch (error) {
     console.error('Auth callback error:', error);
@@ -137,12 +159,15 @@ export const handleDeepLink = async (url: string): Promise<void> => {
   console.log('URL format check:');
   console.log('- Contains exp.direct:', url.includes('.exp.direct'));
   console.log('- Contains auth/callback:', url.includes('auth/callback'));
+  console.log('- Contains --/auth/callback:', url.includes('--/auth/callback'));
   console.log('- Contains expo-checkin:', url.includes('expo-checkin'));
   console.log('- Contains supabase.co:', url.includes('supabase.co'));
   
-  // Check if this is an auth callback - be more flexible with URL patterns
+  // Check if this is an auth callback - accept these specific patterns:
+  // - */--/auth/callback (Expo Go format)
+  // - /auth/callback (standard format)
   const isAuthCallback = 
-    url.includes('auth/callback') || 
+    url.includes('/auth/callback') || 
     url.includes('--/auth/callback') ||
     url.includes('verify') ||
     (url.includes('supabase.co') && url.includes('token'));
@@ -157,7 +182,7 @@ export const handleDeepLink = async (url: string): Promise<void> => {
 };
 
 // Initialize deep link handling
-export const initializeDeepLinkHandling = async (): Promise<void> => {
+export const initializeDeepLinkHandling = async (): Promise<() => void> => {
   try {
     // Check if app was opened with a deep link
     const initialUrl = await ExpoLinking.getInitialURL();
@@ -178,5 +203,6 @@ export const initializeDeepLinkHandling = async (): Promise<void> => {
     };
   } catch (error) {
     console.error('Failed to initialize deep link handling:', error);
+    return () => {}; // Return empty cleanup function
   }
 };
