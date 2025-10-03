@@ -4,9 +4,13 @@
 
 If your magic links are redirecting to `https://efcgzxjwystresjbcezc.supabase.co` instead of your Expo app, follow these exact steps.
 
-### Supabase v2 Compatibility
+### Supabase v2 Magic Link Flow
 
-This app uses **Supabase v2** which requires `exchangeCodeForSession()` instead of the deprecated `getSessionFromUrl()`. The auth service automatically handles this with proper session establishment and logging.
+This app uses **Supabase v2** magic link authentication flow:
+1. `signInWithOtp()` sends magic link email
+2. Deep link opens with token parameter
+3. `verifyOtp()` with `token_hash` establishes session
+4. User is authenticated and logged in
 
 ### 1. Authentication Settings
 
@@ -118,9 +122,10 @@ expo-checkin://auth/callback
 4. **Click the magic link** and check console logs:
    ```
    === RECEIVED DEEP LINK ===
-   Full URL: exp://u3m58lo-serendipitytech-8081.exp.direct/--/auth/callback?access_token=...
-   ✅ Auth callback detected, processing with exchangeCodeForSession...
-   ✅ Session established successfully
+   Full URL: exp://u3m58lo-serendipitytech-8081.exp.direct/--/auth/callback?token=...
+   ✅ Magic link callback detected, processing with verifyOtp...
+   Token extracted from URL: 56c5b1cc86...
+   ✅ Logged in
    User ID: xxx-xxx-xxx
    Email: your@email.com
    ```

@@ -4,6 +4,20 @@ import Constants from 'expo-constants';
 import { getSupabaseClient } from './supabase';
 import { verifyAuthUrl, getAuthRedirectUrl } from '../utils/verifyAuthUrl';
 
+/**
+ * Extract the token from a magic link URL
+ * Magic links contain a token parameter that needs to be verified
+ */
+const extractTokenFromUrl = (url: string): string | null => {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.searchParams.get('token');
+  } catch (error) {
+    console.error('Failed to parse URL for token extraction:', error);
+    return null;
+  }
+};
+
 export const launchMagicLinkSignIn = async (): Promise<void> => {
   const supabase = getSupabaseClient();
   
@@ -112,21 +126,35 @@ export const handleAuthCallback = async (url: string): Promise<void> => {
   try {
     console.log('Handling auth callback with URL:', url);
     
-    // Use Supabase v2 exchangeCodeForSession method
-    const { data, error } = await supabase.auth.exchangeCodeForSession(url);
+    // Extract token from the magic link URL
+    const token = extractTokenFromUrl(url);
+    
+    if (!token) {
+      console.error('❌ No token found in URL');
+      Alert.alert('Sign In Failed', 'Invalid magic link. Please try again.');
+      return;
+    }
+    
+    console.log('Token extracted from URL:', token.substring(0, 10) + '...');
+    
+    // Use verifyOtp for magic link authentication
+    const { data, error } = await supabase.auth.verifyOtp({
+      type: 'magiclink',
+      token_hash: token,
+    });
     
     if (error) {
-      console.error('❌ Auth exchange failed:', error.message);
+      console.error('❌ Auth failed:', error.message);
       throw error;
     }
     
     if (data.session) {
-      console.log('✅ Session established successfully');
+      console.log('✅ Logged in');
       console.log('User ID:', data.user?.id);
       console.log('Email:', data.user?.email);
       Alert.alert('Success', 'You have been signed in successfully!');
     } else {
-      console.error('❌ No session established after exchange');
+      console.error('❌ No session established after verifyOtp');
       Alert.alert('Sign In Failed', 'No session was established. Please try again.');
     }
   } catch (error) {
@@ -148,27 +176,23 @@ export const handleDeepLink = async (url: string): Promise<void> => {
   console.log('- Contains --/auth/callback:', url.includes('--/auth/callback'));
   console.log('- Contains expo-checkin:', url.includes('expo-checkin'));
   console.log('- Contains supabase.co:', url.includes('supabase.co'));
-  console.log('- Contains access_token:', url.includes('access_token'));
-  console.log('- Contains code:', url.includes('code='));
+  console.log('- Contains token:', url.includes('token='));
   
-  // Check if this is an auth callback - accept these specific patterns:
-  // - */--/auth/callback (Expo Go format)
-  // - /auth/callback (standard format)
-  // - URLs with auth tokens or codes
-  const isAuthCallback = 
-    url.includes('/auth/callback') || 
-    url.includes('--/auth/callback') ||
-    url.includes('verify') ||
-    url.includes('access_token') ||
-    url.includes('code=') ||
-    (url.includes('supabase.co') && url.includes('token'));
+  // Check if this is a magic link callback - look for token parameter
+  const token = extractTokenFromUrl(url);
+  const isMagicLinkCallback = 
+    (url.includes('/auth/callback') || url.includes('--/auth/callback')) && 
+    token !== null;
   
-  if (isAuthCallback) {
-    console.log('✅ Auth callback detected, processing with exchangeCodeForSession...');
+  if (isMagicLinkCallback) {
+    console.log('✅ Magic link callback detected, processing with verifyOtp...');
     await handleAuthCallback(url);
   } else {
-    console.log('❌ Not an auth callback URL');
-    console.log('URL does not match expected auth callback patterns');
+    console.log('❌ Not a magic link callback URL');
+    console.log('URL does not contain auth/callback with token parameter');
+    if (token === null) {
+      console.log('❌ No token found in URL');
+    }
   }
 };
 
