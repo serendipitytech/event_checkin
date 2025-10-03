@@ -29,11 +29,13 @@ A comprehensive event check-in application built with Expo and Supabase, featuri
 - **Bulk Operations** – Efficient Supabase upsert with error reporting
 - **Import Validation** – File format validation and error feedback
 
-### ✅ Admin Onboarding
-- **Event Creation** – Complete event setup with organization management
-- **User Invitations** – Role-based invitation system with email notifications
-- **Permission Management** – Assign roles and manage team access
-- **Guided Workflows** – Step-by-step onboarding for new events
+### ✅ Event Management & User Invitations
+- **Event Selection Interface** – Clean modal UI for switching between events
+- **User Invitation System** – Complete invitation flow with magic link integration
+- **Role-Based Permissions** – Enforce role hierarchy (managers can invite checkers)
+- **User Creation** – Automatic user account creation via Supabase Admin API
+- **Dynamic Sign In/Out** – Context-aware authentication button behavior
+- **Demo Data Seeding** – Multiple events for testing and development
 
 ## 🏗️ Architecture
 
@@ -45,6 +47,7 @@ A comprehensive event check-in application built with Expo and Supabase, featuri
 - **`services/permissions.ts`** – Role-based access control and permission helpers
 - **`services/realtime.ts`** – Enhanced real-time subscription management
 - **`services/eventManagement.ts`** – Event creation, user invitations, and role management
+- **`services/invitations.ts`** – User invitation flow with magic link integration
 - **`services/rosterImport.ts`** – CSV and Google Sheets import functionality
 
 ### UI Components
@@ -52,6 +55,7 @@ A comprehensive event check-in application built with Expo and Supabase, featuri
 - **`components/RosterImportModal.tsx`** – File picker and Google Sheets import UI
 - **`components/CreateEventModal.tsx`** – Event creation with organization setup
 - **`components/InviteUserModal.tsx`** – User invitation with role selection
+- **`components/EventSelectorModal.tsx`** – Clean event selection interface
 
 ### Hooks
 - **`hooks/useSupabase.ts`** – Supabase context wrapper
