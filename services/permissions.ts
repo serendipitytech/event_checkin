@@ -1,15 +1,12 @@
 export type EventRole =
-  | 'owner'
-  | 'admin'
-  | 'member'
   | 'manager'
   | 'checker'
   | null
   | undefined;
 
-const KNOWN_ROLES = new Set(['owner', 'admin', 'member', 'manager', 'checker']);
-const ADMIN_ROLES = new Set(['owner', 'admin', 'manager']);
-const CHECKIN_ROLES = new Set(['owner', 'admin', 'manager', 'checker']);
+const KNOWN_ROLES = new Set(['manager', 'checker']);
+const ADMIN_ROLES = new Set(['manager']);
+const CHECKIN_ROLES = new Set(['manager', 'checker']);
 
 export const normalizeRole = (role: string | null | undefined): EventRole => {
   if (!role || !KNOWN_ROLES.has(role)) {
@@ -30,18 +27,12 @@ export const canToggleCheckins = (role: EventRole): boolean => {
 
 export const canManageEvents = (role: EventRole): boolean => {
   if (!role) return false;
-  return role === 'owner' || role === 'admin';
+  return role === 'manager';
 };
 
 export const describeRole = (role: EventRole): string => {
   if (!role) return 'No assigned role';
   switch (role) {
-    case 'owner':
-      return 'Organization owner';
-    case 'admin':
-      return 'Organization admin';
-    case 'member':
-      return 'Organization member';
     case 'manager':
       return 'Event manager';
     case 'checker':
@@ -68,27 +59,24 @@ export const canInviteUsers = (role: EventRole): boolean => {
 
 export const canDeleteEvents = (role: EventRole): boolean => {
   if (!role) return false;
-  return role === 'owner';
+  return role === 'manager';
 };
 
 export const canCreateEvents = (role: EventRole): boolean => {
   if (!role) return false;
-  return role === 'owner' || role === 'admin';
+  return role === 'manager';
 };
 
 export const canManageOrganization = (role: EventRole): boolean => {
   if (!role) return false;
-  return role === 'owner';
+  return role === 'manager';
 };
 
 export const getRoleHierarchy = (role: EventRole): number => {
   if (!role) return 0;
   switch (role) {
-    case 'owner': return 5;
-    case 'admin': return 4;
-    case 'manager': return 3;
-    case 'checker': return 2;
-    case 'member': return 1;
+    case 'manager': return 2;
+    case 'checker': return 1;
     default: return 0;
   }
 };
@@ -101,13 +89,10 @@ export const canManageRole = (managerRole: EventRole, targetRole: EventRole): bo
 export const getAvailableRoles = (currentRole: EventRole): EventRole[] => {
   if (!currentRole) return [];
   
-  const hierarchy = getRoleHierarchy(currentRole);
-  const allRoles: EventRole[] = ['owner', 'admin', 'manager', 'checker', 'member'];
+  // Simplified role options: only manager and checker
+  const roleOptions: EventRole[] = ['manager', 'checker'];
   
-  return allRoles.filter(role => {
-    const roleHierarchy = getRoleHierarchy(role);
-    return roleHierarchy < hierarchy && roleHierarchy > 0;
-  });
+  return roleOptions;
 };
 
 // TODO: Extend these helpers when dedicated Supabase policies for read/write nuances land.
