@@ -112,39 +112,25 @@ export const handleAuthCallback = async (url: string): Promise<void> => {
   try {
     console.log('Handling auth callback with URL:', url);
     
-    // Parse the URL to extract auth tokens
-    const urlObj = new URL(url);
-    const accessToken = urlObj.searchParams.get('access_token');
-    const refreshToken = urlObj.searchParams.get('refresh_token');
+    // Use Supabase v2 exchangeCodeForSession method
+    const { data, error } = await supabase.auth.exchangeCodeForSession(url);
     
-    if (accessToken && refreshToken) {
-      // Set the session with the tokens from the URL
-      const { data, error } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-      
-      if (error) {
-        throw error;
-      }
-      
-      if (data.session) {
-        Alert.alert('Success', 'You have been signed in successfully!');
-      }
+    if (error) {
+      console.error('❌ Auth exchange failed:', error.message);
+      throw error;
+    }
+    
+    if (data.session) {
+      console.log('✅ Session established successfully');
+      console.log('User ID:', data.user?.id);
+      console.log('Email:', data.user?.email);
+      Alert.alert('Success', 'You have been signed in successfully!');
     } else {
-      // Fallback to getting current session
-      const { data, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        throw error;
-      }
-      
-      if (data.session) {
-        Alert.alert('Success', 'You have been signed in successfully!');
-      }
+      console.error('❌ No session established after exchange');
+      Alert.alert('Sign In Failed', 'No session was established. Please try again.');
     }
   } catch (error) {
-    console.error('Auth callback error:', error);
+    console.error('❌ Auth callback error:', error);
     Alert.alert(
       'Sign In Failed',
       error instanceof Error ? error.message : 'Failed to complete sign in. Please try again.'
@@ -155,25 +141,30 @@ export const handleAuthCallback = async (url: string): Promise<void> => {
 // Enhanced deep link handler that works with the dynamic scheme
 export const handleDeepLink = async (url: string): Promise<void> => {
   console.log('=== RECEIVED DEEP LINK ===');
-  console.log('URL:', url);
+  console.log('Full URL:', url);
   console.log('URL format check:');
   console.log('- Contains exp.direct:', url.includes('.exp.direct'));
   console.log('- Contains auth/callback:', url.includes('auth/callback'));
   console.log('- Contains --/auth/callback:', url.includes('--/auth/callback'));
   console.log('- Contains expo-checkin:', url.includes('expo-checkin'));
   console.log('- Contains supabase.co:', url.includes('supabase.co'));
+  console.log('- Contains access_token:', url.includes('access_token'));
+  console.log('- Contains code:', url.includes('code='));
   
   // Check if this is an auth callback - accept these specific patterns:
   // - */--/auth/callback (Expo Go format)
   // - /auth/callback (standard format)
+  // - URLs with auth tokens or codes
   const isAuthCallback = 
     url.includes('/auth/callback') || 
     url.includes('--/auth/callback') ||
     url.includes('verify') ||
+    url.includes('access_token') ||
+    url.includes('code=') ||
     (url.includes('supabase.co') && url.includes('token'));
   
   if (isAuthCallback) {
-    console.log('✅ Auth callback detected, processing...');
+    console.log('✅ Auth callback detected, processing with exchangeCodeForSession...');
     await handleAuthCallback(url);
   } else {
     console.log('❌ Not an auth callback URL');
