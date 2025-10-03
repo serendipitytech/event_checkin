@@ -8,8 +8,8 @@ If your magic links are redirecting to `https://efcgzxjwystresjbcezc.supabase.co
 
 This app uses **Supabase v2** magic link authentication flow:
 1. `signInWithOtp()` sends magic link email
-2. Deep link opens with token parameter
-3. `verifyOtp()` with `token_hash` establishes session
+2. Deep link opens with tokens in hash fragment (#access_token=...&refresh_token=...)
+3. `setSession()` with tokens from hash fragment establishes session
 4. User is authenticated and logged in
 
 ### 1. Authentication Settings
@@ -122,9 +122,11 @@ expo-checkin://auth/callback
 4. **Click the magic link** and check console logs:
    ```
    === RECEIVED DEEP LINK ===
-   Full URL: exp://u3m58lo-serendipitytech-8081.exp.direct/--/auth/callback?token=...
-   ✅ Magic link callback detected, processing with verifyOtp...
-   Token extracted from URL: 56c5b1cc86...
+   Full URL: exp://u3m58lo-serendipitytech-8081.exp.direct/--/auth/callback#access_token=...
+   ✅ Magic link callback detected with hash fragment tokens
+   Fragment parameters: ['access_token', 'refresh_token', 'token_type', 'expires_in']
+   Tokens found in hash fragment
+   Access token (first 10 chars): eyJhbGciOi...
    ✅ Logged in
    User ID: xxx-xxx-xxx
    Email: your@email.com

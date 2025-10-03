@@ -5,7 +5,30 @@ import { getSupabaseClient } from './supabase';
 import { verifyAuthUrl, getAuthRedirectUrl } from '../utils/verifyAuthUrl';
 
 /**
- * Extract the token from a magic link URL
+ * Parse hash fragment from URL to extract key/value pairs
+ * Used for extracting tokens from magic link URLs like #access_token=...&refresh_token=...
+ */
+const parseFragment = (url: string): Record<string, string> => {
+  try {
+    const fragment = url.split('#')[1];
+    if (!fragment) return {};
+    
+    const params = new URLSearchParams(fragment);
+    const result: Record<string, string> = {};
+    
+    for (const [key, value] of params.entries()) {
+      result[key] = value;
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Failed to parse URL fragment:', error);
+    return {};
+  }
+};
+
+/**
+ * Extract the token from a magic link URL (legacy method for query params)
  * Magic links contain a token parameter that needs to be verified
  */
 const extractTokenFromUrl = (url: string): string | null => {
@@ -126,36 +149,40 @@ export const handleAuthCallback = async (url: string): Promise<void> => {
   try {
     console.log('Handling auth callback with URL:', url);
     
-    // Extract token from the magic link URL
-    const token = extractTokenFromUrl(url);
+    // Parse hash fragment to extract tokens
+    const fragmentParams = parseFragment(url);
+    console.log('Fragment parameters:', Object.keys(fragmentParams));
     
-    if (!token) {
-      console.error('❌ No token found in URL');
-      Alert.alert('Sign In Failed', 'Invalid magic link. Please try again.');
-      return;
-    }
+    const { access_token, refresh_token } = fragmentParams;
     
-    console.log('Token extracted from URL:', token.substring(0, 10) + '...');
-    
-    // Use verifyOtp for magic link authentication
-    const { data, error } = await supabase.auth.verifyOtp({
-      type: 'magiclink',
-      token_hash: token,
-    });
-    
-    if (error) {
-      console.error('❌ Auth failed:', error.message);
-      throw error;
-    }
-    
-    if (data.session) {
-      console.log('✅ Logged in');
-      console.log('User ID:', data.user?.id);
-      console.log('Email:', data.user?.email);
-      Alert.alert('Success', 'You have been signed in successfully!');
+    if (access_token && refresh_token) {
+      console.log('Tokens found in hash fragment');
+      console.log('Access token (first 10 chars):', access_token.substring(0, 10) + '...');
+      
+      // Use setSession with tokens from hash fragment
+      const { data, error } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+      
+      if (error) {
+        console.error('❌ Auth failed:', error.message);
+        throw error;
+      }
+      
+      if (data.session) {
+        console.log('✅ Logged in');
+        console.log('User ID:', data.user?.id);
+        console.log('Email:', data.user?.email);
+        Alert.alert('Success', 'You have been signed in successfully!');
+      } else {
+        console.error('❌ No session established after setSession');
+        Alert.alert('Sign In Failed', 'No session was established. Please try again.');
+      }
     } else {
-      console.error('❌ No session established after verifyOtp');
-      Alert.alert('Sign In Failed', 'No session was established. Please try again.');
+      console.error('❌ No access_token or refresh_token found in hash fragment');
+      console.log('Available fragment params:', Object.keys(fragmentParams));
+      Alert.alert('Sign In Failed', 'Invalid magic link. Please try again.');
     }
   } catch (error) {
     console.error('❌ Auth callback error:', error);
@@ -176,22 +203,25 @@ export const handleDeepLink = async (url: string): Promise<void> => {
   console.log('- Contains --/auth/callback:', url.includes('--/auth/callback'));
   console.log('- Contains expo-checkin:', url.includes('expo-checkin'));
   console.log('- Contains supabase.co:', url.includes('supabase.co'));
-  console.log('- Contains token:', url.includes('token='));
+  console.log('- Contains hash fragment:', url.includes('#'));
+  console.log('- Contains access_token in hash:', url.includes('#access_token='));
   
-  // Check if this is a magic link callback - look for token parameter
-  const token = extractTokenFromUrl(url);
+  // Check if this is a magic link callback - look for hash fragment tokens
+  const fragmentParams = parseFragment(url);
+  const hasTokens = fragmentParams.access_token && fragmentParams.refresh_token;
   const isMagicLinkCallback = 
     (url.includes('/auth/callback') || url.includes('--/auth/callback')) && 
-    token !== null;
+    hasTokens;
   
   if (isMagicLinkCallback) {
-    console.log('✅ Magic link callback detected, processing with verifyOtp...');
+    console.log('✅ Magic link callback detected with hash fragment tokens');
     await handleAuthCallback(url);
   } else {
     console.log('❌ Not a magic link callback URL');
-    console.log('URL does not contain auth/callback with token parameter');
-    if (token === null) {
-      console.log('❌ No token found in URL');
+    console.log('URL does not contain auth/callback with hash fragment tokens');
+    if (!hasTokens) {
+      console.log('❌ No access_token or refresh_token found in hash fragment');
+      console.log('Available fragment params:', Object.keys(fragmentParams));
     }
   }
 };
