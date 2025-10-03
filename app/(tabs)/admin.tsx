@@ -289,6 +289,25 @@ export default function AdminScreen() {
           <Text style={styles.eventInfoValue}>{describeRole()}</Text>
         </View>
 
+        {/* Invite User Button - Prominently placed below event selector */}
+        {(() => {
+          const shouldShowInviteButton = canInviteUsers && selectedEvent;
+          console.log('Invite button rendered:', shouldShowInviteButton, 'role=', currentRole, 'selectedEvent=', selectedEvent?.eventName);
+          
+          if (shouldShowInviteButton) {
+            return (
+              <View style={styles.inviteButtonContainer}>
+                <ActionButton
+                  label="Invite User"
+                  variant="primary"
+                  onPress={() => setInviteUserModalVisible(true)}
+                />
+              </View>
+            );
+          }
+          return null;
+        })()}
+
         <Text style={styles.autoRefreshLabel}>Auto Refresh</Text>
         <View style={styles.autoRefreshOptions}>
           {AUTO_REFRESH_OPTIONS.map((option) => {
@@ -607,5 +626,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1f1f1f'
+  },
+  inviteButtonContainer: {
+    marginTop: 16,
+    marginBottom: 8
   }
 });
