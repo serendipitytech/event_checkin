@@ -34,10 +34,12 @@ const AUTO_REFRESH_OPTIONS = [
 
 export default function AdminScreen() {
   const {
+    session,
     events,
     selectedEvent,
     setSelectedEventId,
     loading: supabaseLoading,
+    signIn,
     signOut
   } = useSupabase();
   const {
@@ -442,27 +444,32 @@ export default function AdminScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Account</Text>
         <Text style={styles.cardSubtitle}>
-          Sign out of your account.
+          {session ? 'Sign out of your account.' : 'Sign in to access admin features.'}
         </Text>
         <View style={styles.actions}>
           <ActionButton
-            label="Sign Out"
-            variant="danger"
+            label={session ? "Sign Out" : "Sign In"}
+            variant={session ? "danger" : "primary"}
+            disabled={false}
             onPress={() => {
-              Alert.alert(
-                'Sign Out',
-                'Are you sure you want to sign out?',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Sign Out',
-                    style: 'destructive',
-                    onPress: () => {
-                      void signOut();
+              if (session) {
+                Alert.alert(
+                  'Sign Out',
+                  'Are you sure you want to sign out?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Sign Out',
+                      style: 'destructive',
+                      onPress: () => {
+                        void signOut();
+                      }
                     }
-                  }
-                ]
-              );
+                  ]
+                );
+              } else {
+                void signIn();
+              }
             }}
           />
         </View>

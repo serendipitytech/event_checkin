@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { inviteUserToEvent, type InviteUserData } from '../services/eventManagement';
+import { inviteUserToEvent } from '../services/invitations';
 import { getAvailableRoles, type EventRole } from '../services/permissions';
 
 type InviteUserModalProps = {
@@ -29,11 +29,8 @@ export const InviteUserModal: React.FC<InviteUserModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [inviteData, setInviteData] = useState<InviteUserData>({
-    email: '',
-    role: 'checker',
-    message: '',
-  });
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<EventRole>('checker');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -42,13 +39,13 @@ export const InviteUserModal: React.FC<InviteUserModalProps> = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!inviteData.email.trim()) {
+    if (!email.trim()) {
       newErrors.email = 'Email address is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteData.email.trim())) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       newErrors.email = 'Please enter a valid email address';
     }
 
-    if (!inviteData.role) {
+    if (!role) {
       newErrors.role = 'Please select a role';
     }
 
@@ -61,7 +58,11 @@ export const InviteUserModal: React.FC<InviteUserModalProps> = ({
 
     setLoading(true);
     try {
-      await inviteUserToEvent(userRole, eventId, inviteData);
+      await inviteUserToEvent(eventId, email.trim(), role);
+      Alert.alert(
+        'Invitation Sent',
+        `Invitation sent to ${email.trim()}`
+      );
       onSuccess();
       handleClose();
     } catch (error) {
@@ -75,19 +76,23 @@ export const InviteUserModal: React.FC<InviteUserModalProps> = ({
   };
 
   const handleClose = () => {
-    setInviteData({
-      email: '',
-      role: 'checker',
-      message: '',
-    });
+    setEmail('');
+    setRole('checker');
     setErrors({});
     onClose();
   };
 
-  const updateField = (field: keyof InviteUserData, value: string) => {
-    setInviteData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+  const updateEmail = (value: string) => {
+    setEmail(value);
+    if (errors.email) {
+      setErrors(prev => ({ ...prev, email: '' }));
+    }
+  };
+
+  const updateRole = (value: EventRole) => {
+    setRole(value);
+    if (errors.role) {
+      setErrors(prev => ({ ...prev, role: '' }));
     }
   };
 
@@ -132,8 +137,8 @@ export const InviteUserModal: React.FC<InviteUserModalProps> = ({
               <Text style={styles.fieldLabel}>Email Address *</Text>
               <TextInput
                 style={[styles.input, errors.email && styles.inputError]}
-                value={inviteData.email}
-                onChangeText={(value) => updateField('email', value)}
+                value={email}
+                onChangeText={updateEmail}
                 placeholder="user@example.com"
                 placeholderTextColor="#8e8e93"
                 keyboardType="email-address"
@@ -146,30 +151,30 @@ export const InviteUserModal: React.FC<InviteUserModalProps> = ({
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Role *</Text>
               <View style={styles.roleContainer}>
-                {availableRoles.map((role) => (
+                {availableRoles.map((roleOption) => (
                   <TouchableOpacity
-                    key={role}
+                    key={roleOption}
                     style={[
                       styles.roleOption,
-                      inviteData.role === role && styles.roleOptionActive
+                      role === roleOption && styles.roleOptionActive
                     ]}
-                    onPress={() => updateField('role', role)}
+                    onPress={() => updateRole(roleOption)}
                   >
                     <View style={styles.roleHeader}>
                       <Ionicons
-                        name={inviteData.role === role ? 'radio-button-on' : 'radio-button-off'}
+                        name={role === roleOption ? 'radio-button-on' : 'radio-button-off'}
                         size={20}
-                        color={inviteData.role === role ? '#007aff' : '#8e8e93'}
+                        color={role === roleOption ? '#007aff' : '#8e8e93'}
                       />
                       <Text style={[
                         styles.roleTitle,
-                        inviteData.role === role && styles.roleTitleActive
+                        role === roleOption && styles.roleTitleActive
                       ]}>
-                        {role.charAt(0).toUpperCase() + role.slice(1)}
+                        {roleOption.charAt(0).toUpperCase() + roleOption.slice(1)}
                       </Text>
                     </View>
                     <Text style={styles.roleDescription}>
-                      {getRoleDescription(role)}
+                      {getRoleDescription(roleOption)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -177,19 +182,6 @@ export const InviteUserModal: React.FC<InviteUserModalProps> = ({
               {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
             </View>
 
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Personal Message</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={inviteData.message}
-                onChangeText={(value) => updateField('message', value)}
-                placeholder="Optional personal message to include with the invitation"
-                placeholderTextColor="#8e8e93"
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-            </View>
           </View>
 
           <View style={styles.section}>
