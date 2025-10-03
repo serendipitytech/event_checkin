@@ -7,6 +7,60 @@ export type InviteUserData = {
   message?: string;
 };
 
+type AccessibleEvent = {
+  eventId: string;
+  eventName: string;
+  orgId: string;
+  orgName: string;
+  role: string | null;
+};
+
+/**
+ * Helper function to fetch an accessible event with proper RLS enforcement
+ * Uses the get_my_access RPC function to respect row-level security
+ */
+const fetchAccessibleEvent = async (
+  supabase: ReturnType<typeof getSupabaseClient>,
+  eventId: string,
+  userId: string
+): Promise<AccessibleEvent> => {
+  const { data, error } = await supabase.rpc('get_my_access');
+
+  if (error) {
+    console.error('Error fetching accessible events:', { 
+      eventId, 
+      userId, 
+      error: error.message, 
+      details: error.details 
+    });
+    throw new Error('Failed to fetch accessible events');
+  }
+
+  const rows = (data ?? []) as Array<{
+    org_id: string | null;
+    org_name: string | null;
+    event_id: string | null;
+    event_name: string | null;
+    role: string | null;
+  }>;
+
+  // Find the specific event
+  const eventRow = rows.find(row => row.event_id === eventId);
+
+  if (!eventRow) {
+    console.error('Event not accessible to current user:', { eventId, userId });
+    throw new Error('Event not accessible to current user');
+  }
+
+  return {
+    eventId: String(eventRow.event_id),
+    eventName: eventRow.event_name ?? 'Untitled Event',
+    orgId: eventRow.org_id ? String(eventRow.org_id) : '',
+    orgName: eventRow.org_name ?? 'Unnamed Org',
+    role: eventRow.role
+  };
+};
+
 export const inviteUserToEvent = async (
   eventId: string,
   email: string,
@@ -21,27 +75,8 @@ export const inviteUserToEvent = async (
       throw new Error('You must be signed in to invite users');
     }
 
-    // Get event details to include org information
-    const { data: eventData, error: eventError } = await supabase
-      .from('events')
-      .select(`
-        id,
-        name,
-        org_id,
-        organizations!inner(name)
-      `)
-      .eq('id', eventId)
-      .maybeSingle();
-
-    if (eventError) {
-      console.error('Error fetching event details:', { eventId, error: eventError, userId: session.user.id });
-      throw new Error('Failed to fetch event details');
-    }
-
-    if (!eventData) {
-      console.error('No event found or not accessible:', { eventId, userId: session.user.id });
-      throw new Error('Event not found or not accessible');
-    }
+    // Get event details using RLS-compliant helper
+    const eventData = await fetchAccessibleEvent(supabase, eventId, session.user.id);
 
     // Call the Edge Function
     const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/invite_user`, {
@@ -55,8 +90,8 @@ export const inviteUserToEvent = async (
         eventId, 
         email: email.trim(), 
         role,
-        orgId: eventData.org_id,
-        orgName: eventData.organizations.name
+        orgId: eventData.orgId,
+        orgName: eventData.orgName
       }),
     });
 
@@ -89,27 +124,8 @@ export const resendInvitation = async (
       throw new Error('You must be signed in to resend invitations');
     }
 
-    // Get event details to include org information
-    const { data: eventData, error: eventError } = await supabase
-      .from('events')
-      .select(`
-        id,
-        name,
-        org_id,
-        organizations!inner(name)
-      `)
-      .eq('id', eventId)
-      .maybeSingle();
-
-    if (eventError) {
-      console.error('Error fetching event details for resend:', { eventId, error: eventError, userId: session.user.id });
-      throw new Error('Failed to fetch event details');
-    }
-
-    if (!eventData) {
-      console.error('No event found or not accessible for resend:', { eventId, userId: session.user.id });
-      throw new Error('Event not found or not accessible');
-    }
+    // Get event details using RLS-compliant helper
+    const eventData = await fetchAccessibleEvent(supabase, eventId, session.user.id);
 
     // Call the Edge Function with resend flag
     const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/invite_user`, {
@@ -123,8 +139,8 @@ export const resendInvitation = async (
         eventId, 
         email: email.trim(), 
         role: 'checker', // Default role for resend
-        orgId: eventData.org_id,
-        orgName: eventData.organizations.name,
+        orgId: eventData.orgId,
+        orgName: eventData.orgName,
         resend: true
       }),
     });
