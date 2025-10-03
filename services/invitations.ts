@@ -7,6 +7,18 @@ export type InviteUserData = {
   message?: string;
 };
 
+/**
+ * Helper function to get the appropriate redirect URL based on environment
+ * Development: Uses exp+auth:// scheme to avoid SSL certificate issues
+ * Production: Uses HTTPS domain for deployed app
+ */
+function getRedirectTo(): string {
+  if (__DEV__) {
+    return 'exp+auth://expo-checkin/--/auth/callback';
+  }
+  return 'https://your-app-domain.com/auth/callback';
+}
+
 type AccessibleEvent = {
   eventId: string;
   eventName: string;
@@ -78,6 +90,10 @@ export const inviteUserToEvent = async (
     // Get event details using RLS-compliant helper
     const eventData = await fetchAccessibleEvent(supabase, eventId, session.user.id);
 
+    // Get the appropriate redirect URL for the environment
+    const redirectTo = getRedirectTo();
+    console.log('Sending invite with redirectTo:', redirectTo);
+
     // Call the Edge Function
     const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/invite_user`, {
       method: 'POST',
@@ -91,7 +107,8 @@ export const inviteUserToEvent = async (
         email: email.trim(), 
         role,
         orgId: eventData.orgId,
-        orgName: eventData.orgName
+        orgName: eventData.orgName,
+        redirectTo
       }),
     });
 
@@ -127,6 +144,10 @@ export const resendInvitation = async (
     // Get event details using RLS-compliant helper
     const eventData = await fetchAccessibleEvent(supabase, eventId, session.user.id);
 
+    // Get the appropriate redirect URL for the environment
+    const redirectTo = getRedirectTo();
+    console.log('Resending invite with redirectTo:', redirectTo);
+
     // Call the Edge Function with resend flag
     const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/invite_user`, {
       method: 'POST',
@@ -141,6 +162,7 @@ export const resendInvitation = async (
         role: 'checker', // Default role for resend
         orgId: eventData.orgId,
         orgName: eventData.orgName,
+        redirectTo,
         resend: true
       }),
     });

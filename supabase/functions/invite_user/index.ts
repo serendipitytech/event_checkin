@@ -27,7 +27,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")! // ✅ safe here
     );
 
-    const { email, role, eventId, orgId, orgName } = await req.json();
+    const { email, role, eventId, orgId, orgName, redirectTo } = await req.json();
 
     if (!email || !role || !eventId) {
       return new Response(JSON.stringify({ error: 'Missing required fields: email, role, eventId' }), { 
@@ -111,10 +111,15 @@ serve(async (req) => {
     // TODO: Add org_id and org_name to email template context
     // TODO: Consider using custom mailer (SendGrid, etc.) for branded emails
     
-    const redirectUrl = "exp://192.168.1.25:8082/--"; // Updated to match current tunnel URL
-    const magicLinkRedirectUrl = `${redirectUrl}/auth/callback?event_id=${eventId}`;
+    // Use the redirectTo from client, or fallback to default if not provided
+    const baseRedirectUrl = redirectTo || "exp+auth://expo-checkin/--/auth/callback";
+    const magicLinkRedirectUrl = `${baseRedirectUrl}?event_id=${eventId}`;
     
-    console.log("Invite flow: Sending magic link", { email, redirectUrl: magicLinkRedirectUrl });
+    console.log("Invite flow: Sending magic link", { 
+      email, 
+      redirectTo: baseRedirectUrl,
+      magicLinkRedirectUrl 
+    });
     
     const { data: otpData, error: otpError } = await supabase.auth.signInWithOtp({
       email,
