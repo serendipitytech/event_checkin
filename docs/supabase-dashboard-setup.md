@@ -166,4 +166,49 @@ import { verifyAuthUrl } from './utils/verifyAuthUrl';
 verifyAuthUrl();
 ```
 
+### 7. Row Level Security (RLS) Policies
+
+The app uses RLS policies to ensure users can only access events they're members of. The following policies are automatically created by the database schema:
+
+#### Events Table Access
+```sql
+-- Events are visible to org members or explicit event members
+create policy "events_select_by_access"
+  on public.events for select
+  using (id in (select event_id from public.my_events));
+```
+
+#### My Events View
+```sql
+-- What events can current user access? (org member OR explicit event member)
+create or replace view public.my_events as
+select e.id as event_id
+from public.events e
+where e.org_id in (select org_id from public.my_orgs)
+union
+select em.event_id from public.event_members em where em.user_id = auth.uid();
+```
+
+This means users can see events if they are:
+1. **Organization members** - Members of the organization that owns the event
+2. **Event members** - Explicitly added to the event via `event_members` table
+
+#### Event Members Table Access
+```sql
+-- Event members are visible to other event members
+create policy "event_members_select_by_access"
+  on public.event_members for select
+  using (event_id in (select event_id from public.my_events));
+```
+
+### 8. Troubleshooting Event Access Issues
+
+**Problem**: "Event not found or not accessible" error when inviting users.
+
+**Solution**:
+1. Verify the user is a member of the event via `event_members` table
+2. Check that the user is a member of the organization that owns the event
+3. Ensure RLS policies are properly configured
+4. Check console logs for `eventId` and `userId` to debug access issues
+
 This will show you exactly what URL is being generated and whether it's a tunnel URL or localhost URL.

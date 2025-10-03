@@ -31,11 +31,16 @@ export const inviteUserToEvent = async (
         organizations!inner(name)
       `)
       .eq('id', eventId)
-      .single();
+      .maybeSingle();
 
     if (eventError) {
-      console.error('Error fetching event details:', eventError);
+      console.error('Error fetching event details:', { eventId, error: eventError, userId: session.user.id });
       throw new Error('Failed to fetch event details');
+    }
+
+    if (!eventData) {
+      console.error('No event found or not accessible:', { eventId, userId: session.user.id });
+      throw new Error('Event not found or not accessible');
     }
 
     // Call the Edge Function
@@ -94,11 +99,16 @@ export const resendInvitation = async (
         organizations!inner(name)
       `)
       .eq('id', eventId)
-      .single();
+      .maybeSingle();
 
     if (eventError) {
-      console.error('Error fetching event details for resend:', eventError);
+      console.error('Error fetching event details for resend:', { eventId, error: eventError, userId: session.user.id });
       throw new Error('Failed to fetch event details');
+    }
+
+    if (!eventData) {
+      console.error('No event found or not accessible for resend:', { eventId, userId: session.user.id });
+      throw new Error('Event not found or not accessible');
     }
 
     // Call the Edge Function with resend flag
