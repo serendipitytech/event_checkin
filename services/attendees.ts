@@ -69,13 +69,12 @@ export const fetchAttendees = async (eventId: string): Promise<Attendee[]> => {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('attendees')
-    .select(
-      'id, event_id, full_name, group_name, table_number, ticket_type, notes, checked_in, checked_in_at, checked_in_by, updated_at'
-    )
+    .select('*')
     .eq('event_id', eventId)
     .order('full_name');
 
   if (error) {
+    console.error('fetchAttendees failed:', JSON.stringify(error, null, 2));
     throw error;
   }
 
@@ -133,13 +132,10 @@ export const toggleCheckin = async (
 
 export const resetAllCheckins = async (eventId: string): Promise<void> => {
   const supabase = getSupabaseClient();
-  const { error } = await supabase
-    .from('attendees')
-    .update({ checked_in: false, checked_in_at: null, checked_in_by: null })
-    .eq('event_id', eventId);
+  const { error } = await supabase.rpc('reset_attendees', { p_event_id: eventId });
 
   if (error) {
-    console.error('resetAllCheckins failed', error);
+    console.error('resetAllCheckins failed:', JSON.stringify(error, null, 2));
     throw error;
   }
 };

@@ -92,10 +92,10 @@ export default function AdminScreen() {
             try {
               await resetAllCheckins(selectedEvent.eventId);
               emitRefreshAttendees({ silent: true });
-              Alert.alert('Reset complete', 'All attendees were marked Pending.');
+              Alert.alert('Reset complete', 'All attendees marked pending.');
             } catch (err) {
-              console.error('Reset all check-ins failed', err);
-              Alert.alert('Unable to reset', 'Check your connection and try again.');
+              console.error('Reset all check-ins failed:', JSON.stringify(err, null, 2));
+              Alert.alert('Unable to reset', 'Please try again.');
             }
           }
         }
