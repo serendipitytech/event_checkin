@@ -1,5 +1,6 @@
 import { getSupabaseClient } from './supabase';
 import type { EventRole } from './permissions';
+import * as Linking from "expo-linking";
 
 export type InviteUserData = {
   email: string;
@@ -9,12 +10,14 @@ export type InviteUserData = {
 
 /**
  * Helper function to get the appropriate redirect URL based on environment
- * Development: Uses exp+auth:// scheme to avoid SSL certificate issues
+ * Development: Uses dynamic Expo tunnel URL from Linking.createURL
  * Production: Uses HTTPS domain for deployed app
  */
 function getRedirectTo(): string {
   if (__DEV__) {
-    return 'exp+auth://expo-checkin/--/auth/callback';
+    const redirectTo = Linking.createURL("/auth/callback");
+    console.log("🔗 Using dynamic redirectTo:", redirectTo);
+    return redirectTo;
   }
   return 'https://your-app-domain.com/auth/callback';
 }
