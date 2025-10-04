@@ -83,8 +83,9 @@ export const mapCSVRowToAttendee = (
     tableNumber: row[mapping.table]?.trim() || '',
     ticketType: row[mapping.ticketType]?.trim() || '',
     notes: row[mapping.notes]?.trim() || null,
-    status: 'pending',
     checkedIn: false,
+    checkedInAt: null,
+    checkedInBy: null,
   };
 };
 

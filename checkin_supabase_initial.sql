@@ -393,3 +393,17 @@ as $$
   select count(*) from public.attendees
   where event_id = p_event_id and group_name = p_group and checked_in = p_checked;
 $$;
+
+-- Reset all check-ins for an event
+create or replace function public.reset_attendees(p_event_id uuid)
+returns void
+language sql security definer
+as $$
+  update public.attendees
+  set checked_in = false,
+      checked_in_at = null,
+      checked_in_by = null,
+      updated_at = now()
+  where event_id = p_event_id
+    and event_id in (select event_id from public.my_events);
+$$;

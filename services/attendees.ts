@@ -3,8 +3,6 @@ import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { getSupabaseClient } from './supabase';
 import { subscribeToAttendees as subscribeToAttendeesRealtime } from './realtime';
 
-export type AttendeeStatus = 'pending' | 'checked-in';
-
 export type Attendee = {
   id: string;
   eventId: string;
@@ -13,7 +11,6 @@ export type Attendee = {
   tableNumber: string;
   ticketType: string;
   notes?: string | null;
-  status: AttendeeStatus;
   checkedIn: boolean;
   checkedInAt?: string | null;
   checkedInBy?: string | null;
@@ -57,7 +54,6 @@ const mapRecordToAttendee = (record: AttendeeRecord | null): Attendee | null => 
     tableNumber: tableNumber ?? '',
     ticketType: ticketType ?? '',
     notes: record.notes,
-    status: checkedIn ? 'checked-in' : 'pending',
     checkedIn,
     checkedInAt: record.checked_in_at,
     checkedInBy: record.checked_in_by,

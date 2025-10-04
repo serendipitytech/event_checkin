@@ -33,7 +33,6 @@ import { Swipeable } from 'react-native-gesture-handler';
 import {
   Attendee,
   AttendeeChange,
-  AttendeeStatus,
   fetchAttendees,
   subscribeAttendees,
   toggleCheckin
@@ -48,7 +47,8 @@ import { useSupabase } from '../../hooks/useSupabase';
 import { usePermissions } from '../../hooks/usePermissions';
 import ActionButton from '../../components/ActionButton';
 
-const segments: AttendeeStatus[] = ['pending', 'checked-in'];
+type CheckInStatus = 'pending' | 'checked-in';
+const segments: CheckInStatus[] = ['pending', 'checked-in'];
 const SORT_OPTIONS = [
   { key: 'attendeeName', label: 'Attendee' },
   { key: 'groupName', label: 'Group' },
@@ -88,7 +88,7 @@ export default function CheckInScreen() {
   } = useSupabase();
   const { canToggleCheckins, canViewAttendees } = usePermissions();
   const [attendees, setAttendees] = useState<Attendee[]>([]);
-  const [activeStatus, setActiveStatus] = useState<AttendeeStatus>('pending');
+  const [activeStatus, setActiveStatus] = useState<CheckInStatus>('pending');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('attendeeName');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -109,8 +109,8 @@ export default function CheckInScreen() {
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const totals = useMemo(() => {
-    const pending = attendees.filter((item) => item.status === 'pending').length;
-    const checkedIn = attendees.filter((item) => item.status === 'checked-in').length;
+    const pending = attendees.filter((item) => !item.checkedIn).length;
+    const checkedIn = attendees.filter((item) => item.checkedIn).length;
 
     return {
       total: attendees.length,
@@ -270,7 +270,11 @@ export default function CheckInScreen() {
     const lowerSearch = searchTerm.trim().toLowerCase();
 
     const filtered = attendees
-      .filter((item) => item.status === activeStatus)
+      .filter((item) => {
+        if (activeStatus === 'pending') return !item.checkedIn;
+        if (activeStatus === 'checked-in') return item.checkedIn;
+        return true;
+      })
       .filter((item) => {
         if (!lowerSearch) return true;
         const haystack = `${item.attendeeName} ${item.groupName} ${item.tableNumber} ${item.ticketType}`.toLowerCase();
@@ -306,7 +310,12 @@ export default function CheckInScreen() {
         setAttendees((prev) =>
           prev.map((existing) =>
             existing.id === attendee.id
-              ? { ...existing, status: makeCheckedIn ? 'checked-in' : 'pending' }
+              ? { 
+                  ...existing, 
+                  checkedIn: makeCheckedIn,
+                  checkedInAt: makeCheckedIn ? new Date().toISOString() : null,
+                  checkedInBy: makeCheckedIn ? 'current-user' : null
+                }
               : existing
           )
         );
@@ -341,7 +350,12 @@ export default function CheckInScreen() {
         setAttendees((prev) =>
           prev.map((existing) =>
             targets.some((target) => target.id === existing.id)
-              ? { ...existing, status: 'checked-in' }
+              ? { 
+                  ...existing, 
+                  checkedIn: true,
+                  checkedInAt: new Date().toISOString(),
+                  checkedInBy: 'current-user'
+                }
               : existing
           )
         );
@@ -370,7 +384,7 @@ export default function CheckInScreen() {
   const renderItem = useCallback<ListRenderItem<Attendee>>(
     ({ item }) => {
       let swipeRef: Swipeable | null = null;
-      const isPending = item.status === 'pending';
+      const isPending = !item.checkedIn;
       const actionLabel = isPending ? 'Check In' : 'Undo';
       const actionColor = isPending ? '#27ae60' : '#c0392b';
       const groupLabel = item.groupName || 'No group';

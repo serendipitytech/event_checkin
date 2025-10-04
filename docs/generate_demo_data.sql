@@ -27,6 +27,20 @@ CREATE POLICY "org_members_manage_by_admins"
   )
   WITH CHECK (true);
 
+-- Reset all check-ins for an event
+CREATE OR REPLACE FUNCTION public.reset_attendees(p_event_id uuid)
+RETURNS void
+LANGUAGE sql SECURITY DEFINER
+AS $$
+  UPDATE public.attendees
+  SET checked_in = false,
+      checked_in_at = null,
+      checked_in_by = null,
+      updated_at = now()
+  WHERE event_id = p_event_id
+    AND event_id IN (SELECT event_id FROM public.my_events);
+$$;
+
 DO $$
 DECLARE
   v_user_id uuid;
