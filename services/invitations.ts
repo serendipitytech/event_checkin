@@ -122,6 +122,14 @@ export const inviteUserToEvent = async (
       throw new Error(data.error || 'Failed to invite user');
     }
 
+    // Check if user was successfully added to the event
+    if (data.eventMembershipCreated) {
+      console.log(`✅ User added to event ${data.eventId} as ${data.role}`);
+    } else {
+      console.error('❌ Failed to assign user to event');
+      throw new Error('Failed to assign user to event');
+    }
+
     console.log('Successfully sent invitation to:', email);
     console.log('Edge Function response:', data);
     
@@ -175,6 +183,14 @@ export const resendInvitation = async (
     if (!response.ok) {
       console.error('Edge Function error (resend):', data);
       throw new Error(data.error || 'Failed to resend invitation');
+    }
+
+    // Check if user was successfully added to the event
+    if (data.eventMembershipCreated) {
+      console.log(`✅ User added to event ${data.eventId} as ${data.role}`);
+    } else {
+      console.error('❌ Failed to assign user to event');
+      throw new Error('Failed to assign user to event');
     }
 
     console.log('Successfully resent invitation to:', email);
