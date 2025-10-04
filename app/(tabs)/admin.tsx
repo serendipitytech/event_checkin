@@ -182,41 +182,17 @@ export default function AdminScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <View style={styles.pageContainer}>
+      <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.heading}>Admin Tools</Text>
       <Text style={styles.description}>
-        Manage roster imports, Google Sheet syncs, and bulk actions from this
-        screen. Confirm the preferred import UX before wiring the remaining
-        flows.
+        {currentRole === 'checker' 
+          ? `Welcome ${session?.user?.email || session?.user?.user_metadata?.name || 'User'}! Customize your settings below.`
+          : 'Manage roster imports, Google Sheet syncs, and bulk actions from this screen. Confirm the preferred import UX before wiring the remaining flows.'
+        }
       </Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Bulk Actions</Text>
-        <Text style={styles.cardSubtitle}>
-          Use these tools to reset the roster or reload data sources.
-        </Text>
-        <View style={styles.actions}>
-          <ActionButton
-            label="Import CSV/XLSX"
-            variant="secondary"
-            onPress={handleImportRoster}
-            disabled={!canManageRoster}
-          />
-          <ActionButton
-            label="Sync Google Sheet"
-            variant="secondary"
-            onPress={handleSyncSheet}
-            disabled={!canManageRoster}
-          />
-          <ActionButton
-            label="Reset Check-Ins"
-            variant="danger"
-            onPress={handleResetAll}
-            disabled={!selectedEvent || !canManageRoster}
-          />
-        </View>
-      </View>
-
+      {/* Auto Refresh - Moved to top for all roles */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Auto Refresh</Text>
         <Text style={styles.cardSubtitle}>
@@ -243,91 +219,140 @@ export default function AdminScreen() {
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Real-time Status</Text>
-        <Text style={styles.cardSubtitle}>
-          Monitor real-time connection status and sync across devices.
-        </Text>
-        <View style={styles.statusRow}>
-          <Text style={styles.statusLabel}>Connection Status</Text>
-          <View style={styles.statusValue}>
-            <View style={[styles.statusIndicator, hasAnyConnection ? styles.statusConnected : styles.statusDisconnected]} />
-            <Text style={styles.statusText}>
-              {hasAnyConnection ? 'Connected' : 'Disconnected'}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.statusRow}>
-          <Text style={styles.statusLabel}>Active Connections</Text>
-          <Text style={styles.statusValueText}>{connectionCount}</Text>
-        </View>
-        {hasErrors && (
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Reconnect Attempts</Text>
-            <Text style={styles.statusValueText}>{totalReconnectAttempts}</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Event Settings</Text>
-        <Text style={styles.cardSubtitle}>
-          Manage which event you are viewing and how often attendee data refreshes.
-        </Text>
-        <View style={styles.eventInfoRow}>
-          <Text style={styles.eventInfoLabel}>Current Event</Text>
-          <Text style={styles.eventInfoValue}>
-            {selectedEvent ? selectedEvent.eventName : 'No event selected'}
+      {/* Bulk Actions - Hidden for checkers */}
+      {currentRole !== 'checker' && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Bulk Actions</Text>
+          <Text style={styles.cardSubtitle}>
+            Use these tools to reset the roster or reload data sources.
           </Text>
-          <TouchableOpacity onPress={handleSelectEvent} style={styles.eventSwitcher}>
-            <Text style={styles.eventSwitcherLabel}>Change</Text>
-          </TouchableOpacity>
+          <View style={styles.actions}>
+            <ActionButton
+              label="Import CSV/XLSX"
+              variant="secondary"
+              onPress={handleImportRoster}
+              disabled={!canManageRoster}
+            />
+            <ActionButton
+              label="Sync Google Sheet"
+              variant="secondary"
+              onPress={handleSyncSheet}
+              disabled={!canManageRoster}
+            />
+            <ActionButton
+              label="Reset Check-Ins"
+              variant="danger"
+              onPress={handleResetAll}
+              disabled={!selectedEvent || !canManageRoster}
+            />
+          </View>
         </View>
+      )}
 
-        <View style={styles.eventInfoRow}>
-          <Text style={styles.eventInfoLabel}>Your Role</Text>
-          <Text style={styles.eventInfoValue}>{describeRole()}</Text>
+      {/* Real-time Status - Hidden for checkers */}
+      {currentRole !== 'checker' && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Real-time Status</Text>
+          <Text style={styles.cardSubtitle}>
+            Monitor real-time connection status and sync across devices.
+          </Text>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Connection Status</Text>
+            <View style={styles.statusValue}>
+              <View style={[styles.statusIndicator, hasAnyConnection ? styles.statusConnected : styles.statusDisconnected]} />
+              <Text style={styles.statusText}>
+                {hasAnyConnection ? 'Connected' : 'Disconnected'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Active Connections</Text>
+            <Text style={styles.statusValueText}>{connectionCount}</Text>
+          </View>
+          {hasErrors && (
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>Reconnect Attempts</Text>
+              <Text style={styles.statusValueText}>{totalReconnectAttempts}</Text>
+            </View>
+          )}
         </View>
+      )}
 
-        {/* Invite User Button - Prominently placed below event selector */}
-        {(() => {
-          const shouldShowInviteButton = canInviteUsers && selectedEvent;
-          
-          if (shouldShowInviteButton) {
-            return (
-              <View style={styles.inviteButtonContainer}>
-                <ActionButton
-                  label="Invite User"
-                  variant="primary"
-                  onPress={() => setInviteUserModalVisible(true)}
-                />
-              </View>
-            );
-          }
-          return null;
-        })()}
+      {/* Event Settings - Simplified for checkers, full for managers/admins */}
+      {currentRole === 'checker' ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Event Settings</Text>
+          <View style={styles.eventInfoRow}>
+            <Text style={styles.eventInfoLabel}>Current Event</Text>
+            <Text style={styles.eventInfoValue}>
+              {selectedEvent ? selectedEvent.eventName : 'No event selected'}
+            </Text>
+            <TouchableOpacity onPress={handleSelectEvent} style={styles.eventSwitcher}>
+              <Text style={styles.eventSwitcherLabel}>Change</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Event Settings</Text>
+          <Text style={styles.cardSubtitle}>
+            Manage which event you are viewing and how often attendee data refreshes.
+          </Text>
+          <View style={styles.eventInfoRow}>
+            <Text style={styles.eventInfoLabel}>Current Event</Text>
+            <Text style={styles.eventInfoValue}>
+              {selectedEvent ? selectedEvent.eventName : 'No event selected'}
+            </Text>
+            <TouchableOpacity onPress={handleSelectEvent} style={styles.eventSwitcher}>
+              <Text style={styles.eventSwitcherLabel}>Change</Text>
+            </TouchableOpacity>
+          </View>
 
-        <Text style={styles.autoRefreshLabel}>Auto Refresh</Text>
-        <View style={styles.autoRefreshOptions}>
-          {AUTO_REFRESH_OPTIONS.map((option) => {
-            const isActive = autoRefreshInterval === option.value;
-            return (
-              <TouchableOpacity
-                key={option.value}
-                onPress={() => handleSelectAutoRefresh(option.value)}
-                style={[styles.autoRefreshChip, isActive ? styles.autoRefreshChipActive : null]}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[styles.autoRefreshChipLabel, isActive ? styles.autoRefreshChipLabelActive : null]}
+          <View style={styles.eventInfoRow}>
+            <Text style={styles.eventInfoLabel}>Your Role</Text>
+            <Text style={styles.eventInfoValue}>{describeRole()}</Text>
+          </View>
+
+          {/* Invite User Button - Prominently placed below event selector */}
+          {(() => {
+            const shouldShowInviteButton = canInviteUsers && selectedEvent;
+            
+            if (shouldShowInviteButton) {
+              return (
+                <View style={styles.inviteButtonContainer}>
+                  <ActionButton
+                    label="Invite User"
+                    variant="primary"
+                    onPress={() => setInviteUserModalVisible(true)}
+                  />
+                </View>
+              );
+            }
+            return null;
+          })()}
+
+          <Text style={styles.autoRefreshLabel}>Auto Refresh</Text>
+          <View style={styles.autoRefreshOptions}>
+            {AUTO_REFRESH_OPTIONS.map((option) => {
+              const isActive = autoRefreshInterval === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  onPress={() => handleSelectAutoRefresh(option.value)}
+                  style={[styles.autoRefreshChip, isActive ? styles.autoRefreshChipActive : null]}
+                  activeOpacity={0.8}
                 >
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                  <Text
+                    style={[styles.autoRefreshChipLabel, isActive ? styles.autoRefreshChipLabelActive : null]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
-      </View>
+      )}
 
       {canCreateEvents && (
         <View style={styles.card}>
@@ -419,15 +444,6 @@ export default function AdminScreen() {
         </View>
       )}
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Next Steps</Text>
-        <Text style={styles.cardSubtitle}>
-          - Integrate a file/document picker for roster uploads.
-          {'\n'}- Confirm Google Sheet proxy usage and authentication.
-          {'\n'}- Implement event creation and user invitation flows.
-          {'\n'}- Add role-based UI components and permissions.
-        </Text>
-      </View>
 
       <RosterImportModal
         visible={importModalVisible}
@@ -459,48 +475,52 @@ export default function AdminScreen() {
         onSelectEvent={handleEventSelection}
       />
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Account</Text>
-        <Text style={styles.cardSubtitle}>
-          {session ? 'Sign out of your account.' : 'Sign in to access admin features.'}
-        </Text>
-        <View style={styles.actions}>
-          <ActionButton
-            label={session ? "Sign Out" : "Sign In"}
-            variant={session ? "danger" : "primary"}
-            disabled={false}
-            onPress={() => {
-              if (session) {
-                Alert.alert(
-                  'Sign Out',
-                  'Are you sure you want to sign out?',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Sign Out',
-                      style: 'destructive',
-                      onPress: () => {
-                        void signOut();
-                      }
+      </ScrollView>
+      
+      {/* Floating Sign Out Button */}
+      <View style={styles.floatingButtonContainer}>
+        <TouchableOpacity
+          style={styles.floatingSignOutButton}
+          onPress={() => {
+            if (session) {
+              Alert.alert(
+                'Sign Out',
+                'Are you sure you want to sign out?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Sign Out',
+                    style: 'destructive',
+                    onPress: () => {
+                      void signOut();
                     }
-                  ]
-                );
-              } else {
-                void signIn();
-              }
-            }}
-          />
-        </View>
+                  }
+                ]
+              );
+            } else {
+              void signIn();
+            }
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.floatingSignOutButtonText}>
+            {session ? "Sign Out" : "Sign In"}
+          </Text>
+        </TouchableOpacity>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  pageContainer: {
+    flex: 1,
+    backgroundColor: '#f4f5f7'
+  },
   container: {
     padding: 24,
     gap: 24,
-    backgroundColor: '#f4f5f7'
+    paddingBottom: 100 // Add bottom padding to account for floating button
   },
   heading: {
     fontSize: 26,
@@ -629,5 +649,29 @@ const styles = StyleSheet.create({
   inviteButtonContainer: {
     marginTop: 16,
     marginBottom: 8
+  },
+  floatingButtonContainer: {
+    position: 'absolute',
+    bottom: 24,
+    left: 24,
+    right: 24,
+    alignItems: 'center'
+  },
+  floatingSignOutButton: {
+    backgroundColor: '#dc3545',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+    shadowColor: '#000000',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6
+  },
+  floatingSignOutButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center'
   }
 });

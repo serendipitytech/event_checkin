@@ -131,3 +131,82 @@ FROM event_members em
 JOIN events e ON e.id = em.event_id
 JOIN auth.users u ON u.id = em.user_id
 ORDER BY e.name, em.role;
+
+-- =========================================
+-- Test Script: Verify Event Memberships
+-- =========================================
+
+-- 1. Show all events and their members with roles
+SELECT 
+  e.id AS event_id,
+  e.name AS event_name,
+  u.email AS user_email,
+  em.role,
+  em.created_at
+FROM event_members em
+JOIN events e ON em.event_id = e.id
+JOIN auth.users u ON em.user_id = u.id
+ORDER BY e.name, em.role, u.email;
+
+-- 2. Verify specific user membership (replace with test email)
+SELECT 
+  u.email,
+  e.name AS event_name,
+  em.role,
+  em.created_at
+FROM event_members em
+JOIN events e ON em.event_id = e.id
+JOIN auth.users u ON em.user_id = u.id
+WHERE u.email = 'troy.shimkus+invite3@gmail.com';
+
+-- 3. Count members per event
+SELECT 
+  e.name AS event_name,
+  COUNT(*) AS total_members,
+  COUNT(*) FILTER (WHERE em.role = 'manager') AS managers,
+  COUNT(*) FILTER (WHERE em.role = 'checker') AS checkers
+FROM event_members em
+JOIN events e ON em.event_id = e.id
+GROUP BY e.name
+ORDER BY e.name;
+
+-- 4. Quick check: list all users who are not yet assigned to any event
+SELECT 
+  u.email
+FROM auth.users u
+LEFT JOIN event_members em ON u.id = em.user_id
+WHERE em.user_id IS NULL
+ORDER BY u.email;
+
+-- =========================================
+-- Cleanup Script: Remove Test Users & Memberships
+-- =========================================
+-- ⚠️ WARNING: This will permanently delete test data.
+-- Replace the email(s) or UUID(s) in the IN clauses before running.
+-- =========================================
+
+-- 1. Define your target emails or user IDs
+-- Example: clean up demo invite accounts
+WITH target_users AS (
+  SELECT id
+  FROM auth.users
+  WHERE email IN (
+    'troy.shimkus+invite1@gmail.com',
+    'troy.shimkus+invite2@gmail.com',
+    'troy.shimkus+invite3@gmail.com'
+  )
+  -- OR use UUIDs instead of emails:
+  -- WHERE id IN ('14836d65-73f1-447e-a90a-5ce69e87cb92', '...')
+)
+
+-- 2. Delete from event_members first (to avoid FK constraint errors)
+DELETE FROM event_members
+WHERE user_id IN (SELECT id FROM target_users);
+
+-- 3. Delete the users themselves from Supabase auth
+DELETE FROM auth.users
+WHERE id IN (SELECT id FROM target_users);
+
+-- 4. (Optional) Verify cleanup
+SELECT * FROM auth.users WHERE email LIKE '%invite%';
+SELECT * FROM event_members WHERE user_id IN (SELECT id FROM target_users);
