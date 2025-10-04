@@ -1,3 +1,24 @@
+-- Create interest_requests table for Request Info modal
+CREATE TABLE IF NOT EXISTS interest_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text,
+  email text NOT NULL,
+  organization text,
+  message text,
+  created_at timestamp with time zone DEFAULT now()
+);
+
+-- Enable RLS on interest_requests table
+ALTER TABLE interest_requests ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow anyone to insert interest requests
+CREATE POLICY "Anyone can insert interest requests" ON interest_requests
+  FOR INSERT WITH CHECK (true);
+
+-- Create policy to allow authenticated users to view interest requests
+CREATE POLICY "Authenticated users can view interest requests" ON interest_requests
+  FOR SELECT USING (auth.role() = 'authenticated');
+
 DO $$
 DECLARE
   v_user_id uuid;

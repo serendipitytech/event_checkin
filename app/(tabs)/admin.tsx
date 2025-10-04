@@ -21,6 +21,7 @@ import { RosterImportModal } from '../../components/RosterImportModal';
 import { CreateEventModal } from '../../components/CreateEventModal';
 import { InviteUserModal } from '../../components/InviteUserModal';
 import { EventSelectorModal } from '../../components/EventSelectorModal';
+import { RequestInfoModal } from '../../components/RequestInfoModal';
 import type { ImportResult } from '../../services/rosterImport';
 
 const AUTO_REFRESH_OPTIONS = [
@@ -59,6 +60,7 @@ export default function AdminScreen() {
   const [createEventModalVisible, setCreateEventModalVisible] = useState(false);
   const [inviteUserModalVisible, setInviteUserModalVisible] = useState(false);
   const [eventSelectorModalVisible, setEventSelectorModalVisible] = useState(false);
+  const [requestInfoModalVisible, setRequestInfoModalVisible] = useState(false);
 
   useEffect(() => {
     const remove = addAutoRefreshListener((interval) => {
@@ -181,157 +183,65 @@ export default function AdminScreen() {
     // The modal will close automatically after selection
   };
 
+  // Conditional rendering based on authentication state
+  if (!session) {
+    // Logged-out state - Show onboarding and request info
+    return (
+      <View style={styles.pageContainer}>
+        <ScrollView contentContainerStyle={styles.loggedOutContainer}>
+          <Text style={styles.heading}>Event Check-In</Text>
+          <Text style={styles.loggedOutDescription}>
+            Ask your event planner to invite you to an event and you'll be able to check in attendees.{'\n\n'}
+            If you're an event planner and want to use this app, tap below to request more info.
+          </Text>
+        </ScrollView>
+        
+        {/* Floating Buttons for Logged-Out State */}
+        <View style={styles.loggedOutButtonContainer}>
+          <TouchableOpacity
+            style={styles.goldButton}
+            onPress={() => setRequestInfoModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.goldButtonText}>Request Info</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.goldButton}
+            onPress={() => void signIn()}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.goldButtonText}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Request Info Modal */}
+        <RequestInfoModal
+          visible={requestInfoModalVisible}
+          onClose={() => setRequestInfoModalVisible(false)}
+        />
+      </View>
+    );
+  }
+
+  // Logged-in state - Show normal Admin Tools
   return (
     <View style={styles.pageContainer}>
       <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.heading}>Admin Tools</Text>
-      <Text style={styles.description}>
-        {currentRole === 'checker' 
-          ? `Welcome ${session?.user?.email || session?.user?.user_metadata?.name || 'User'}! Customize your settings below.`
-          : 'Manage roster imports, Google Sheet syncs, and bulk actions from this screen. Confirm the preferred import UX before wiring the remaining flows.'
-        }
-      </Text>
-
-      {/* Auto Refresh - Moved to top for all roles */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Auto Refresh</Text>
-        <Text style={styles.cardSubtitle}>
-          Choose how often the attendee list refreshes automatically.
+        <Text style={styles.heading}>Admin Tools</Text>
+        <Text style={styles.description}>
+          {currentRole === 'checker' 
+            ? `Welcome ${session?.user?.email || session?.user?.user_metadata?.name || 'User'}! Customize your settings below.`
+            : 'Manage roster imports, Google Sheet syncs, and bulk actions from this screen. Confirm the preferred import UX before wiring the remaining flows.'
+          }
         </Text>
-        <View style={styles.autoRefreshOptions}>
-          {AUTO_REFRESH_OPTIONS.map((option) => {
-            const isActive = autoRefreshInterval === option.value;
-            return (
-              <TouchableOpacity
-                key={option.value}
-                onPress={() => handleSelectAutoRefresh(option.value)}
-                style={[styles.autoRefreshChip, isActive ? styles.autoRefreshChipActive : null]}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[styles.autoRefreshChipLabel, isActive ? styles.autoRefreshChipLabelActive : null]}
-                >
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
 
-      {/* Bulk Actions - Hidden for checkers */}
-      {currentRole !== 'checker' && (
+        {/* Auto Refresh - Moved to top for all roles */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Bulk Actions</Text>
+          <Text style={styles.cardTitle}>Auto Refresh</Text>
           <Text style={styles.cardSubtitle}>
-            Use these tools to reset the roster or reload data sources.
+            Choose how often the attendee list refreshes automatically.
           </Text>
-          <View style={styles.actions}>
-            <ActionButton
-              label="Import CSV/XLSX"
-              variant="secondary"
-              onPress={handleImportRoster}
-              disabled={!canManageRoster}
-            />
-            <ActionButton
-              label="Sync Google Sheet"
-              variant="secondary"
-              onPress={handleSyncSheet}
-              disabled={!canManageRoster}
-            />
-            <ActionButton
-              label="Reset Check-Ins"
-              variant="danger"
-              onPress={handleResetAll}
-              disabled={!selectedEvent || !canManageRoster}
-            />
-          </View>
-        </View>
-      )}
-
-      {/* Real-time Status - Hidden for checkers */}
-      {currentRole !== 'checker' && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Real-time Status</Text>
-          <Text style={styles.cardSubtitle}>
-            Monitor real-time connection status and sync across devices.
-          </Text>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Connection Status</Text>
-            <View style={styles.statusValue}>
-              <View style={[styles.statusIndicator, hasAnyConnection ? styles.statusConnected : styles.statusDisconnected]} />
-              <Text style={styles.statusText}>
-                {hasAnyConnection ? 'Connected' : 'Disconnected'}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Active Connections</Text>
-            <Text style={styles.statusValueText}>{connectionCount}</Text>
-          </View>
-          {hasErrors && (
-            <View style={styles.statusRow}>
-              <Text style={styles.statusLabel}>Reconnect Attempts</Text>
-              <Text style={styles.statusValueText}>{totalReconnectAttempts}</Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Event Settings - Simplified for checkers, full for managers/admins */}
-      {currentRole === 'checker' ? (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Event Settings</Text>
-          <View style={styles.eventInfoRow}>
-            <Text style={styles.eventInfoLabel}>Current Event</Text>
-            <Text style={styles.eventInfoValue}>
-              {selectedEvent ? selectedEvent.eventName : 'No event selected'}
-            </Text>
-            <TouchableOpacity onPress={handleSelectEvent} style={styles.eventSwitcher}>
-              <Text style={styles.eventSwitcherLabel}>Change</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Event Settings</Text>
-          <Text style={styles.cardSubtitle}>
-            Manage which event you are viewing and how often attendee data refreshes.
-          </Text>
-          <View style={styles.eventInfoRow}>
-            <Text style={styles.eventInfoLabel}>Current Event</Text>
-            <Text style={styles.eventInfoValue}>
-              {selectedEvent ? selectedEvent.eventName : 'No event selected'}
-            </Text>
-            <TouchableOpacity onPress={handleSelectEvent} style={styles.eventSwitcher}>
-              <Text style={styles.eventSwitcherLabel}>Change</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.eventInfoRow}>
-            <Text style={styles.eventInfoLabel}>Your Role</Text>
-            <Text style={styles.eventInfoValue}>{describeRole()}</Text>
-          </View>
-
-          {/* Invite User Button - Prominently placed below event selector */}
-          {(() => {
-            const shouldShowInviteButton = canInviteUsers && selectedEvent;
-            
-            if (shouldShowInviteButton) {
-              return (
-                <View style={styles.inviteButtonContainer}>
-                  <ActionButton
-                    label="Invite User"
-                    variant="primary"
-                    onPress={() => setInviteUserModalVisible(true)}
-                  />
-                </View>
-              );
-            }
-            return null;
-          })()}
-
-          <Text style={styles.autoRefreshLabel}>Auto Refresh</Text>
           <View style={styles.autoRefreshOptions}>
             {AUTO_REFRESH_OPTIONS.map((option) => {
               const isActive = autoRefreshInterval === option.value;
@@ -352,129 +262,261 @@ export default function AdminScreen() {
             })}
           </View>
         </View>
-      )}
 
-      {canCreateEvents && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Event Management</Text>
-          <Text style={styles.cardSubtitle}>
-            Create new events and manage existing ones.
-          </Text>
-          <View style={styles.actions}>
-            <ActionButton
-              label="Create New Event"
-              variant="primary"
-              onPress={() => setCreateEventModalVisible(true)}
-            />
-            {canDeleteEvents && selectedEvent && (
+        {/* Bulk Actions - Hidden for checkers */}
+        {currentRole !== 'checker' && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Bulk Actions</Text>
+            <Text style={styles.cardSubtitle}>
+              Use these tools to reset the roster or reload data sources.
+            </Text>
+            <View style={styles.actions}>
               <ActionButton
-                label="Delete Current Event"
+                label="Import CSV/XLSX"
+                variant="secondary"
+                onPress={handleImportRoster}
+                disabled={!canManageRoster}
+              />
+              <ActionButton
+                label="Sync Google Sheet"
+                variant="secondary"
+                onPress={handleSyncSheet}
+                disabled={!canManageRoster}
+              />
+              <ActionButton
+                label="Reset Check-Ins"
                 variant="danger"
+                onPress={handleResetAll}
+                disabled={!selectedEvent || !canManageRoster}
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Real-time Status - Hidden for checkers */}
+        {currentRole !== 'checker' && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Real-time Status</Text>
+            <Text style={styles.cardSubtitle}>
+              Monitor real-time connection status and sync across devices.
+            </Text>
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>Connection Status</Text>
+              <View style={styles.statusValue}>
+                <View style={[styles.statusIndicator, hasAnyConnection ? styles.statusConnected : styles.statusDisconnected]} />
+                <Text style={styles.statusText}>
+                  {hasAnyConnection ? 'Connected' : 'Disconnected'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>Active Connections</Text>
+              <Text style={styles.statusValueText}>{connectionCount}</Text>
+            </View>
+            {hasErrors && (
+              <View style={styles.statusRow}>
+                <Text style={styles.statusLabel}>Reconnect Attempts</Text>
+                <Text style={styles.statusValueText}>{totalReconnectAttempts}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Event Settings - Simplified for checkers, full for managers/admins */}
+        {currentRole === 'checker' ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Event Settings</Text>
+            <View style={styles.eventInfoRow}>
+              <Text style={styles.eventInfoLabel}>Current Event</Text>
+              <Text style={styles.eventInfoValue}>
+                {selectedEvent ? selectedEvent.eventName : 'No event selected'}
+              </Text>
+              <TouchableOpacity onPress={handleSelectEvent} style={styles.eventSwitcher}>
+                <Text style={styles.eventSwitcherLabel}>Change</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Event Settings</Text>
+            <Text style={styles.cardSubtitle}>
+              Manage which event you are viewing and how often attendee data refreshes.
+            </Text>
+            <View style={styles.eventInfoRow}>
+              <Text style={styles.eventInfoLabel}>Current Event</Text>
+              <Text style={styles.eventInfoValue}>
+                {selectedEvent ? selectedEvent.eventName : 'No event selected'}
+              </Text>
+              <TouchableOpacity onPress={handleSelectEvent} style={styles.eventSwitcher}>
+                <Text style={styles.eventSwitcherLabel}>Change</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.eventInfoRow}>
+              <Text style={styles.eventInfoLabel}>Your Role</Text>
+              <Text style={styles.eventInfoValue}>{describeRole()}</Text>
+            </View>
+
+            {/* Invite User Button - Prominently placed below event selector */}
+            {(() => {
+              const shouldShowInviteButton = canInviteUsers && selectedEvent;
+              
+              if (shouldShowInviteButton) {
+                return (
+                  <View style={styles.inviteButtonContainer}>
+                    <ActionButton
+                      label="Invite User"
+                      variant="primary"
+                      onPress={() => setInviteUserModalVisible(true)}
+                    />
+                  </View>
+                );
+              }
+              return null;
+            })()}
+
+            <Text style={styles.autoRefreshLabel}>Auto Refresh</Text>
+            <View style={styles.autoRefreshOptions}>
+              {AUTO_REFRESH_OPTIONS.map((option) => {
+                const isActive = autoRefreshInterval === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => handleSelectAutoRefresh(option.value)}
+                    style={[styles.autoRefreshChip, isActive ? styles.autoRefreshChipActive : null]}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[styles.autoRefreshChipLabel, isActive ? styles.autoRefreshChipLabelActive : null]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {canCreateEvents && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Event Management</Text>
+            <Text style={styles.cardSubtitle}>
+              Create new events and manage existing ones.
+            </Text>
+            <View style={styles.actions}>
+              <ActionButton
+                label="Create New Event"
+                variant="primary"
+                onPress={() => setCreateEventModalVisible(true)}
+              />
+              {canDeleteEvents && selectedEvent && (
+                <ActionButton
+                  label="Delete Current Event"
+                  variant="danger"
+                  onPress={() => {
+                    Alert.alert(
+                      'Delete Event',
+                      `Are you sure you want to delete "${selectedEvent.eventName}"? This action cannot be undone.`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Delete',
+                          style: 'destructive',
+                          onPress: () => {
+                            Alert.alert(
+                              'Delete Event',
+                              'Event deletion will be implemented in the next phase.'
+                            );
+                          }
+                        }
+                      ]
+                    );
+                  }}
+                />
+              )}
+            </View>
+          </View>
+        )}
+
+        {canInviteUsers && selectedEvent && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>User Management</Text>
+            <Text style={styles.cardSubtitle}>
+              Invite users to collaborate on this event.
+            </Text>
+            <View style={styles.actions}>
+              <ActionButton
+                label="Invite User"
+                variant="secondary"
+                onPress={() => setInviteUserModalVisible(true)}
+              />
+              <ActionButton
+                label="Manage Users"
+                variant="secondary"
                 onPress={() => {
                   Alert.alert(
-                    'Delete Event',
-                    `Are you sure you want to delete "${selectedEvent.eventName}"? This action cannot be undone.`,
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      {
-                        text: 'Delete',
-                        style: 'destructive',
-                        onPress: () => {
-                          Alert.alert(
-                            'Delete Event',
-                            'Event deletion will be implemented in the next phase.'
-                          );
-                        }
-                      }
-                    ]
+                    'Manage Users',
+                    'User management will be implemented in the next phase.',
+                    [{ text: 'OK' }]
                   );
                 }}
               />
-            )}
+            </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {canInviteUsers && selectedEvent && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>User Management</Text>
-          <Text style={styles.cardSubtitle}>
-            Invite users to collaborate on this event.
-          </Text>
-          <View style={styles.actions}>
-            <ActionButton
-              label="Invite User"
-              variant="secondary"
-              onPress={() => setInviteUserModalVisible(true)}
-            />
-            <ActionButton
-              label="Manage Users"
-              variant="secondary"
-              onPress={() => {
-                Alert.alert(
-                  'Manage Users',
-                  'User management will be implemented in the next phase.',
-                  [{ text: 'OK' }]
-                );
-              }}
-            />
+        {canManageOrganization && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Organization Settings</Text>
+            <Text style={styles.cardSubtitle}>
+              Manage organization-wide settings and permissions.
+            </Text>
+            <View style={styles.actions}>
+              <ActionButton
+                label="Organization Settings"
+                variant="secondary"
+                onPress={() => {
+                  Alert.alert(
+                    'Organization Settings',
+                    'Organization management will be implemented in the next phase.',
+                    [{ text: 'OK' }]
+                  );
+                }}
+              />
+            </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {canManageOrganization && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Organization Settings</Text>
-          <Text style={styles.cardSubtitle}>
-            Manage organization-wide settings and permissions.
-          </Text>
-          <View style={styles.actions}>
-            <ActionButton
-              label="Organization Settings"
-              variant="secondary"
-              onPress={() => {
-                Alert.alert(
-                  'Organization Settings',
-                  'Organization management will be implemented in the next phase.',
-                  [{ text: 'OK' }]
-                );
-              }}
-            />
-          </View>
-        </View>
-      )}
+        <RosterImportModal
+          visible={importModalVisible}
+          eventId={selectedEvent?.eventId || ''}
+          onClose={() => setImportModalVisible(false)}
+          onSuccess={handleImportSuccess}
+        />
 
+        <CreateEventModal
+          visible={createEventModalVisible}
+          onClose={() => setCreateEventModalVisible(false)}
+          onSuccess={handleCreateEventSuccess}
+        />
 
-      <RosterImportModal
-        visible={importModalVisible}
-        eventId={selectedEvent?.eventId || ''}
-        onClose={() => setImportModalVisible(false)}
-        onSuccess={handleImportSuccess}
-      />
+        <InviteUserModal
+          visible={inviteUserModalVisible}
+          eventId={selectedEvent?.eventId || ''}
+          userRole={currentRole}
+          onClose={() => setInviteUserModalVisible(false)}
+          onSuccess={handleInviteUserSuccess}
+        />
 
-      <CreateEventModal
-        visible={createEventModalVisible}
-        onClose={() => setCreateEventModalVisible(false)}
-        onSuccess={handleCreateEventSuccess}
-      />
-
-      <InviteUserModal
-        visible={inviteUserModalVisible}
-        eventId={selectedEvent?.eventId || ''}
-        userRole={currentRole}
-        onClose={() => setInviteUserModalVisible(false)}
-        onSuccess={handleInviteUserSuccess}
-      />
-
-      <EventSelectorModal
-        visible={eventSelectorModalVisible}
-        events={events}
-        selectedEventId={selectedEvent?.eventId || null}
-        loading={supabaseLoading}
-        onClose={() => setEventSelectorModalVisible(false)}
-        onSelectEvent={handleEventSelection}
-      />
-
+        <EventSelectorModal
+          visible={eventSelectorModalVisible}
+          events={events}
+          selectedEventId={selectedEvent?.eventId || null}
+          loading={supabaseLoading}
+          onClose={() => setEventSelectorModalVisible(false)}
+          onSelectEvent={handleEventSelection}
+        />
       </ScrollView>
       
       {/* Floating Sign Out Button */}
@@ -482,30 +524,24 @@ export default function AdminScreen() {
         <TouchableOpacity
           style={styles.floatingSignOutButton}
           onPress={() => {
-            if (session) {
-              Alert.alert(
-                'Sign Out',
-                'Are you sure you want to sign out?',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Sign Out',
-                    style: 'destructive',
-                    onPress: () => {
-                      void signOut();
-                    }
+            Alert.alert(
+              'Sign Out',
+              'Are you sure you want to sign out?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Sign Out',
+                  style: 'destructive',
+                  onPress: () => {
+                    void signOut();
                   }
-                ]
-              );
-            } else {
-              void signIn();
-            }
+                }
+              ]
+            );
           }}
           activeOpacity={0.8}
         >
-          <Text style={styles.floatingSignOutButtonText}>
-            {session ? "Sign Out" : "Sign In"}
-          </Text>
+          <Text style={styles.floatingSignOutButtonText}>Sign Out</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -670,6 +706,46 @@ const styles = StyleSheet.create({
   },
   floatingSignOutButtonText: {
     color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center'
+  },
+  // Logged-out state styles
+  loggedOutContainer: {
+    padding: 24,
+    gap: 24,
+    paddingBottom: 200, // Extra padding for floating buttons
+    backgroundColor: '#f4f5f7',
+    flexGrow: 1,
+    justifyContent: 'center'
+  },
+  loggedOutDescription: {
+    fontSize: 18,
+    color: '#4a4a4a',
+    lineHeight: 26,
+    textAlign: 'center'
+  },
+  loggedOutButtonContainer: {
+    position: 'absolute',
+    bottom: 24,
+    left: 24,
+    right: 24,
+    gap: 16
+  },
+  goldButton: {
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6
+  },
+  goldButtonText: {
+    color: '#1f1f1f',
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center'
