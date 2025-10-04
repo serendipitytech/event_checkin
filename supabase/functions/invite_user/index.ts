@@ -14,7 +14,7 @@ serve(async (req) => {
     console.log("🎯 Invite flow starting:", { email, eventId, role });
 
     // Use client-provided redirectTo with fallback for production
-    const redirectTo = clientRedirectTo || "https://your-app-domain.com/auth/callback";
+    const redirectTo = clientRedirectTo || "https://your-app-domain.com/auth";
     
     console.log("🔗 Client provided redirectTo:", clientRedirectTo);
     console.log("🔗 Using final redirectTo:", redirectTo);

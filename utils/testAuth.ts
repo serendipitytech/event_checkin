@@ -8,12 +8,12 @@ export const testAuthUrlGeneration = () => {
   console.log('App Ownership:', Constants.appOwnership);
   console.log('Expo Go:', Constants.appOwnership === 'expo');
   
-  const generatedUrl = ExpoLinking.createURL('/auth/callback');
+  const generatedUrl = ExpoLinking.createURL('/auth');
   console.log('Generated URL:', generatedUrl);
   
   // Test different scenarios
   console.log('\n--- URL Generation Tests ---');
-  console.log('1. Auth callback:', ExpoLinking.createURL('/auth/callback'));
+  console.log('1. Auth callback:', ExpoLinking.createURL('/auth'));
   console.log('2. Root path:', ExpoLinking.createURL('/'));
   console.log('3. Deep link scheme from constants:', Constants.expoConfig?.scheme);
   

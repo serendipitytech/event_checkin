@@ -44,9 +44,9 @@ const extractTokenFromUrl = (url: string): string | null => {
 export const launchMagicLinkSignIn = async (): Promise<void> => {
   const supabase = getSupabaseClient();
   
-  // CRITICAL: Force the correct redirect URL using Linking.createURL
-  const redirectTo = ExpoLinking.createURL('/auth/callback');
-  console.log('🔗 Forcing redirectTo:', redirectTo);
+  // Updated for Expo deep linking (dev + prod)
+  const redirectTo = ExpoLinking.createURL('/auth');
+  console.log('🔗 Using dynamic redirect URL:', redirectTo);
   
   // Verify the URL generation is working correctly
   const verifiedUrl = verifyAuthUrl();
@@ -91,11 +91,11 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
             console.log('- Contains supabase.co:', redirectTo.includes('supabase.co'));
             console.log('- Contains expo-checkin:', redirectTo.includes('expo-checkin'));
             
-            // CRITICAL: Force the correct redirect URL - this guarantees Supabase sends the right link
+            // Updated for Expo deep linking (dev + prod)
             const { data, error } = await supabase.auth.signInWithOtp({
               email: email.trim(),
               options: {
-                emailRedirectTo: redirectTo, // ✅ force correct redirect
+                emailRedirectTo: redirectTo, // ✅ Dynamic redirect for dev + prod
               },
             });
 
@@ -105,9 +105,9 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
             }
 
             // Validate that Supabase accepted our redirect URL
-            if (data && !redirectTo.includes('/auth/callback')) {
+            if (data && !redirectTo.includes('/auth')) {
               console.warn('⚠️ WARNING: Supabase may not have accepted our redirect URL');
-              console.warn('Expected URL format with /auth/callback, got:', redirectTo);
+              console.warn('Expected URL format with /auth, got:', redirectTo);
             }
 
             Alert.alert(
@@ -199,6 +199,8 @@ export const handleDeepLink = async (url: string): Promise<void> => {
   console.log('Full URL:', url);
   console.log('URL format check:');
   console.log('- Contains exp.direct:', url.includes('.exp.direct'));
+  console.log('- Contains /auth:', url.includes('/auth'));
+  console.log('- Contains --/auth:', url.includes('--/auth'));
   console.log('- Contains auth/callback:', url.includes('auth/callback'));
   console.log('- Contains --/auth/callback:', url.includes('--/auth/callback'));
   console.log('- Contains expo-checkin:', url.includes('expo-checkin'));
@@ -210,7 +212,7 @@ export const handleDeepLink = async (url: string): Promise<void> => {
   const fragmentParams = parseFragment(url);
   const hasTokens = fragmentParams.access_token && fragmentParams.refresh_token;
   const isMagicLinkCallback = 
-    (url.includes('/auth/callback') || url.includes('--/auth/callback')) && 
+    (url.includes('/auth') || url.includes('--/auth') || url.includes('/auth/callback') || url.includes('--/auth/callback')) && 
     hasTokens;
   
   if (isMagicLinkCallback) {
@@ -218,7 +220,7 @@ export const handleDeepLink = async (url: string): Promise<void> => {
     await handleAuthCallback(url);
   } else {
     console.log('❌ Not a magic link callback URL');
-    console.log('URL does not contain auth/callback with hash fragment tokens');
+    console.log('URL does not contain /auth with hash fragment tokens');
     if (!hasTokens) {
       console.log('❌ No access_token or refresh_token found in hash fragment');
       console.log('Available fragment params:', Object.keys(fragmentParams));

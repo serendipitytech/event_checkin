@@ -15,11 +15,12 @@ export type InviteUserData = {
  */
 function getRedirectTo(): string {
   if (__DEV__) {
-    const redirectTo = Linking.createURL("/auth/callback");
+    // Updated for Expo deep linking (dev + prod)
+    const redirectTo = Linking.createURL("/auth");
     console.log("🔗 Using dynamic redirectTo:", redirectTo);
     return redirectTo;
   }
-  return 'https://your-app-domain.com/auth/callback';
+  return 'https://your-app-domain.com/auth';
 }
 
 type AccessibleEvent = {
