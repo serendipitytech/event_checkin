@@ -230,10 +230,7 @@ export default function AdminScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.heading}>Admin Tools</Text>
         <Text style={styles.description}>
-          {currentRole === 'checker' 
-            ? `Welcome ${session?.user?.email || session?.user?.user_metadata?.name || 'User'}! Customize your settings below.`
-            : 'Manage roster imports, Google Sheet syncs, and bulk actions from this screen. Confirm the preferred import UX before wiring the remaining flows.'
-          }
+          Welcome {session?.user?.email || session?.user?.user_metadata?.name || 'User'}. You can administer your events below and invite additional users to your events.
         </Text>
 
         {/* Auto Refresh - Moved to top for all roles */}
@@ -263,141 +260,28 @@ export default function AdminScreen() {
           </View>
         </View>
 
-        {/* Bulk Actions - Hidden for checkers */}
-        {currentRole !== 'checker' && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Bulk Actions</Text>
-            <Text style={styles.cardSubtitle}>
-              Use these tools to reset the roster or reload data sources.
+
+        {/* Event Settings */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Event Settings</Text>
+          <View style={styles.eventInfoRow}>
+            <Text style={styles.eventInfoLabel}>Current Event</Text>
+            <Text style={styles.eventInfoValue}>
+              {selectedEvent ? selectedEvent.eventName : 'No event selected'}
             </Text>
-            <View style={styles.actions}>
-              <ActionButton
-                label="Import CSV/XLSX"
-                variant="secondary"
-                onPress={handleImportRoster}
-                disabled={!canManageRoster}
-              />
-              <ActionButton
-                label="Sync Google Sheet"
-                variant="secondary"
-                onPress={handleSyncSheet}
-                disabled={!canManageRoster}
-              />
-              <ActionButton
-                label="Reset Check-Ins"
-                variant="danger"
-                onPress={handleResetAll}
-                disabled={!selectedEvent || !canManageRoster}
-              />
-            </View>
+            <TouchableOpacity onPress={handleSelectEvent} style={styles.eventSwitcher}>
+              <Text style={styles.eventSwitcherLabel}>Change</Text>
+            </TouchableOpacity>
           </View>
-        )}
 
-        {/* Real-time Status - Hidden for checkers */}
-        {currentRole !== 'checker' && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Real-time Status</Text>
-            <Text style={styles.cardSubtitle}>
-              Monitor real-time connection status and sync across devices.
-            </Text>
-            <View style={styles.statusRow}>
-              <Text style={styles.statusLabel}>Connection Status</Text>
-              <View style={styles.statusValue}>
-                <View style={[styles.statusIndicator, hasAnyConnection ? styles.statusConnected : styles.statusDisconnected]} />
-                <Text style={styles.statusText}>
-                  {hasAnyConnection ? 'Connected' : 'Disconnected'}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.statusRow}>
-              <Text style={styles.statusLabel}>Active Connections</Text>
-              <Text style={styles.statusValueText}>{connectionCount}</Text>
-            </View>
-            {hasErrors && (
-              <View style={styles.statusRow}>
-                <Text style={styles.statusLabel}>Reconnect Attempts</Text>
-                <Text style={styles.statusValueText}>{totalReconnectAttempts}</Text>
-              </View>
-            )}
+          <View style={styles.eventInfoRow}>
+            <Text style={styles.eventInfoLabel}>Your Role</Text>
+            <Text style={styles.eventInfoValue}>{describeRole()}</Text>
           </View>
-        )}
+        </View>
 
-        {/* Event Settings - Simplified for checkers, full for managers/admins */}
-        {currentRole === 'checker' ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Event Settings</Text>
-            <View style={styles.eventInfoRow}>
-              <Text style={styles.eventInfoLabel}>Current Event</Text>
-              <Text style={styles.eventInfoValue}>
-                {selectedEvent ? selectedEvent.eventName : 'No event selected'}
-              </Text>
-              <TouchableOpacity onPress={handleSelectEvent} style={styles.eventSwitcher}>
-                <Text style={styles.eventSwitcherLabel}>Change</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Event Settings</Text>
-            <Text style={styles.cardSubtitle}>
-              Manage which event you are viewing and how often attendee data refreshes.
-            </Text>
-            <View style={styles.eventInfoRow}>
-              <Text style={styles.eventInfoLabel}>Current Event</Text>
-              <Text style={styles.eventInfoValue}>
-                {selectedEvent ? selectedEvent.eventName : 'No event selected'}
-              </Text>
-              <TouchableOpacity onPress={handleSelectEvent} style={styles.eventSwitcher}>
-                <Text style={styles.eventSwitcherLabel}>Change</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.eventInfoRow}>
-              <Text style={styles.eventInfoLabel}>Your Role</Text>
-              <Text style={styles.eventInfoValue}>{describeRole()}</Text>
-            </View>
-
-            {/* Invite User Button - Prominently placed below event selector */}
-            {(() => {
-              const shouldShowInviteButton = canInviteUsers && selectedEvent;
-              
-              if (shouldShowInviteButton) {
-                return (
-                  <View style={styles.inviteButtonContainer}>
-                    <ActionButton
-                      label="Invite User"
-                      variant="primary"
-                      onPress={() => setInviteUserModalVisible(true)}
-                    />
-                  </View>
-                );
-              }
-              return null;
-            })()}
-
-            <Text style={styles.autoRefreshLabel}>Auto Refresh</Text>
-            <View style={styles.autoRefreshOptions}>
-              {AUTO_REFRESH_OPTIONS.map((option) => {
-                const isActive = autoRefreshInterval === option.value;
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    onPress={() => handleSelectAutoRefresh(option.value)}
-                    style={[styles.autoRefreshChip, isActive ? styles.autoRefreshChipActive : null]}
-                    activeOpacity={0.8}
-                  >
-                    <Text
-                      style={[styles.autoRefreshChipLabel, isActive ? styles.autoRefreshChipLabelActive : null]}
-                    >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
+        {/* TODO v2 - Hide these sections until v2 */}
+        {/* 
         {canCreateEvents && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Event Management</Text>
@@ -487,6 +371,62 @@ export default function AdminScreen() {
             </View>
           </View>
         )}
+        */}
+
+        {/* Real-time Status - Moved to bottom */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Real-time Status</Text>
+          <Text style={styles.cardSubtitle}>
+            Monitor real-time connection status and sync across devices.
+          </Text>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Connection Status</Text>
+            <View style={styles.statusValue}>
+              <View style={[styles.statusIndicator, hasAnyConnection ? styles.statusConnected : styles.statusDisconnected]} />
+              <Text style={styles.statusText}>
+                {hasAnyConnection ? 'Connected' : 'Disconnected'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Active Connections</Text>
+            <Text style={styles.statusValueText}>{connectionCount}</Text>
+          </View>
+          {hasErrors && (
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>Reconnect Attempts</Text>
+              <Text style={styles.statusValueText}>{totalReconnectAttempts}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Bulk Actions - Moved to very bottom */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Bulk Actions</Text>
+          <Text style={styles.cardSubtitle}>
+            Use these tools to reset the roster or reload data sources.
+          </Text>
+          <View style={styles.actions}>
+            <ActionButton
+              label="Import CSV/XLSX"
+              variant="secondary"
+              onPress={handleImportRoster}
+              disabled={!canManageRoster}
+            />
+            <ActionButton
+              label="Sync Google Sheet"
+              variant="secondary"
+              onPress={handleSyncSheet}
+              disabled={!canManageRoster}
+            />
+            <ActionButton
+              label="Reset Check-Ins"
+              variant="danger"
+              onPress={handleResetAll}
+              disabled={!selectedEvent || !canManageRoster}
+            />
+          </View>
+        </View>
 
         <RosterImportModal
           visible={importModalVisible}
