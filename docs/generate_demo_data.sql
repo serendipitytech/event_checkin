@@ -1,23 +1,31 @@
--- Create interest_requests table for Request Info modal
-CREATE TABLE IF NOT EXISTS interest_requests (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text,
-  email text NOT NULL,
-  organization text,
-  message text,
-  created_at timestamp with time zone DEFAULT now()
-);
+-- Fix infinite recursion in organization_members RLS policy
+-- The issue: org_members_select_self policy references my_orgs view,
+-- but my_orgs view references organization_members table, creating circular dependency
 
--- Enable RLS on interest_requests table
-ALTER TABLE interest_requests ENABLE ROW LEVEL SECURITY;
+-- Drop the problematic policy
+DROP POLICY IF EXISTS "org_members_select_self" ON public.organization_members;
 
--- Create policy to allow anyone to insert interest requests
-CREATE POLICY "Anyone can insert interest requests" ON interest_requests
-  FOR INSERT WITH CHECK (true);
+-- Recreate the policy without the circular reference
+-- Users can see their own memberships directly, no need to reference my_orgs
+CREATE POLICY "org_members_select_self"
+  ON public.organization_members FOR SELECT
+  USING (user_id = auth.uid());
 
--- Create policy to allow authenticated users to view interest requests
-CREATE POLICY "Authenticated users can view interest requests" ON interest_requests
-  FOR SELECT USING (auth.role() = 'authenticated');
+-- Also fix the org_members_manage_by_admins policy to avoid the same issue
+DROP POLICY IF EXISTS "org_members_manage_by_admins" ON public.organization_members;
+
+-- Recreate with direct check instead of referencing my_orgs
+CREATE POLICY "org_members_manage_by_admins"
+  ON public.organization_members FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.organization_members m
+      WHERE m.org_id = organization_members.org_id
+        AND m.user_id = auth.uid()
+        AND m.role IN ('owner','admin')
+    )
+  )
+  WITH CHECK (true);
 
 DO $$
 DECLARE
@@ -206,27 +214,28 @@ ORDER BY u.email;
 -- Replace the email(s) or UUID(s) in the IN clauses before running.
 -- =========================================
 
--- 1. Define your target emails or user IDs
--- Example: clean up demo invite accounts
-WITH target_users AS (
-  SELECT id
-  FROM auth.users
+-- Delete from event_members first
+DELETE FROM event_members
+WHERE user_id IN (
+  SELECT id FROM auth.users
   WHERE email IN (
     'troy.shimkus+invite1@gmail.com',
     'troy.shimkus+invite2@gmail.com',
     'troy.shimkus+invite3@gmail.com'
   )
-  -- OR use UUIDs instead of emails:
-  -- WHERE id IN ('14836d65-73f1-447e-a90a-5ce69e87cb92', '...')
-)
+);
 
--- 2. Delete from event_members first (to avoid FK constraint errors)
-DELETE FROM event_members
-WHERE user_id IN (SELECT id FROM target_users);
-
--- 3. Delete the users themselves from Supabase auth
+-- Then delete from auth.users
 DELETE FROM auth.users
-WHERE id IN (SELECT id FROM target_users);
+WHERE email IN (
+  'troy.shimkus+invite1@gmail.com',
+  'troy.shimkus+invite2@gmail.com',
+  'troy.shimkus+invite3@gmail.com'
+);
+
+-- Verify cleanup
+SELECT * FROM auth.users WHERE email LIKE '%invite%';
+SELECT * FROM event_members WHERE user_id NOT IN (SELECT id FROM auth.users);
 
 -- 4. (Optional) Verify cleanup
 SELECT * FROM auth.users WHERE email LIKE '%invite%';

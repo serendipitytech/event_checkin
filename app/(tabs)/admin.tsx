@@ -278,6 +278,17 @@ export default function AdminScreen() {
             <Text style={styles.eventInfoLabel}>Your Role</Text>
             <Text style={styles.eventInfoValue}>{describeRole()}</Text>
           </View>
+
+          {/* Invite User Button - Restored for functionality */}
+          {canInviteUsers && selectedEvent && (
+            <View style={styles.inviteButtonContainer}>
+              <ActionButton
+                label="Invite User"
+                variant="primary"
+                onPress={() => setInviteUserModalVisible(true)}
+              />
+            </View>
+          )}
         </View>
 
         {/* TODO v2 - Hide these sections until v2 */}

@@ -103,15 +103,13 @@ select em.event_id from public.event_members em where em.user_id = auth.uid();
 -- organization_members: a user can see their memberships; org owners/admins manage membership
 create policy "org_members_select_self"
   on public.organization_members for select
-  using (user_id = auth.uid()
-     or org_id in (select org_id from public.my_orgs));
+  using (user_id = auth.uid());
 
 -- Only owners/admins of that org can insert/update/delete membership rows
 create policy "org_members_manage_by_admins"
   on public.organization_members for all
   using (
-    org_id in (select org_id from public.my_orgs)
-    and exists (
+    exists (
       select 1 from public.organization_members m
       where m.org_id = organization_members.org_id
         and m.user_id = auth.uid()
