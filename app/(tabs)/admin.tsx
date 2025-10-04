@@ -459,7 +459,7 @@ export default function AdminScreen() {
         />
       </ScrollView>
       
-      {/* Floating Sign Out Button */}
+      {/* Sign Out Button - Pinned to bottom */}
       <View style={styles.floatingButtonContainer}>
         <TouchableOpacity
           style={styles.floatingSignOutButton}
@@ -495,8 +495,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 24,
-    gap: 24,
-    paddingBottom: 100 // Add bottom padding to account for floating button
+    gap: 24
   },
   heading: {
     fontSize: 26,
@@ -627,11 +626,11 @@ const styles = StyleSheet.create({
     marginBottom: 8
   },
   floatingButtonContainer: {
-    position: 'absolute',
-    bottom: 24,
-    left: 24,
-    right: 24,
-    alignItems: 'center'
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: '#f4f5f7',
+    borderTopWidth: 1,
+    borderTopColor: '#e1e5e9'
   },
   floatingSignOutButton: {
     backgroundColor: '#dc3545',
