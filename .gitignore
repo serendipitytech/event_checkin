@@ -38,3 +38,6 @@ android/
 
 # macOS cruft
 .DS_Store
+
+# Supabase temporary files
+supabase/.temp/

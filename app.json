@@ -9,30 +9,50 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#faae5e"
     },
     "assetBundlePatterns": ["**/*"],
-    "scheme": "expocheckin",
+    "scheme": "checkin",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.serendipitytech.checkin",
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
+        "backgroundColor": "#faae5e"
+      },
+      "package": "com.serendipitytech.checkin",
+      "versionCode": 1,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "checkin",
+              "host": "auth"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
       "output": "static"
     },
-    "plugins": [
-      "expo-router"
-    ],
+    "plugins": ["expo-router"],
     "extra": {
       "eas": {
-        "projectId": "REPLACE_WITH_PROJECT_ID"
-      }
-    }
+        "projectId": "4ec28d73-3633-44be-82d4-fef18e87a82e"
+      },
+      "supabaseUrl": "https://efcgzxjwystresjbcezc.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmY2d6eGp3eXN0cmVzamJjZXpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0MTgwNTYsImV4cCI6MjA3NDk5NDA1Nn0.TGu5A16PWM3ceIVMURQO68fChj80gmkAxPYUTyMsaMs"
+    },
+    "owner": "serendipitytech"
   }
 }
