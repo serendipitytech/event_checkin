@@ -36,13 +36,14 @@ const getSupabaseConfig = () => {
   return { supabaseUrl, supabaseAnonKey };
 };
 
-// Dynamic redirect URL configuration using Expo's Linking.createURL
+// Redirect URL configuration from environment with safe fallback
 const getRedirectUrl = () => {
-  // Use Expo's Linking.createURL which automatically handles:
-  // - Dev tunnel URLs (exp://u3m58lo-serendipitytech-8081.exp.direct/auth/callback)
-  // - Localhost URLs (exp://127.0.0.1:8081/auth/callback)
-  // - Production URLs (expo-checkin://auth/callback)
-  return Linking.createURL('/auth/callback');
+  const envRedirect = process.env.EXPO_PUBLIC_REDIRECT_URL;
+  if (!envRedirect) {
+    console.warn('EXPO_PUBLIC_REDIRECT_URL is not set; falling back to Linking.createURL("/auth/callback").');
+    return Linking.createURL('/auth/callback');
+  }
+  return envRedirect;
 };
 
 // Deep link scheme
