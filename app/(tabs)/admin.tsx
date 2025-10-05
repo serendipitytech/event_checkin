@@ -2,6 +2,8 @@
  * Lintnotes
  * - Purpose: Admin/Settings screen. Manages auto-refresh settings, roster import (file/sheet), invitations,
  *             event selection, and displays realtime connection health. Handles logged-in and logged-out views.
+ * - Role UI: Restrict visibility of Real-time Status and Bulk Actions by user role.
+ * - TODO: Re-enable Bulk Actions for Manager role when backend ready.
  * - Exports: default AdminScreen (React component)
  * - Major deps: react-native UI, components/* modals, services/attendees (reset/import/sync),
  *               services/attendeeEvents (auto-refresh), hooks/useSupabase, hooks/usePermissions, hooks/useRealtime
@@ -77,6 +79,15 @@ export default function AdminScreen() {
     });
     return remove;
   }, []);
+
+  // Determine user role from event (raw) or permissions helper; log on mount/update
+  const userRole: string = (selectedEvent?.role as string | null | undefined)?.toLowerCase?.() || (currentRole || '') as string;
+  useEffect(() => {
+    console.log('👤 Current role:', userRole);
+  }, [userRole]);
+
+  const showRealtimeStatus = userRole === 'admin' || userRole === 'manager';
+  const showBulkActions = userRole === 'admin';
 
   const handleResetAll = () => {
     if (!selectedEvent) {
@@ -394,59 +405,69 @@ export default function AdminScreen() {
         */}
 
         {/* Real-time Status - Moved to bottom */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Real-time Status</Text>
-          <Text style={styles.cardSubtitle}>
-            Monitor real-time connection status and sync across devices.
-          </Text>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Connection Status</Text>
-            <View style={styles.statusValue}>
-              <View style={[styles.statusIndicator, hasAnyConnection ? styles.statusConnected : styles.statusDisconnected]} />
-              <Text style={styles.statusText}>
-                {hasAnyConnection ? 'Connected' : 'Disconnected'}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Active Connections</Text>
-            <Text style={styles.statusValueText}>{connectionCount}</Text>
-          </View>
-          {hasErrors && (
+        {showRealtimeStatus ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Real-time Status</Text>
+            <Text style={styles.cardSubtitle}>
+              Monitor real-time connection status and sync across devices.
+            </Text>
             <View style={styles.statusRow}>
-              <Text style={styles.statusLabel}>Reconnect Attempts</Text>
-              <Text style={styles.statusValueText}>{totalReconnectAttempts}</Text>
+              <Text style={styles.statusLabel}>Connection Status</Text>
+              <View style={styles.statusValue}>
+                <View style={[styles.statusIndicator, hasAnyConnection ? styles.statusConnected : styles.statusDisconnected]} />
+                <Text style={styles.statusText}>
+                  {hasAnyConnection ? 'Connected' : 'Disconnected'}
+                </Text>
+              </View>
             </View>
-          )}
-        </View>
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>Active Connections</Text>
+              <Text style={styles.statusValueText}>{connectionCount}</Text>
+            </View>
+            {hasErrors && (
+              <View style={styles.statusRow}>
+                <Text style={styles.statusLabel}>Reconnect Attempts</Text>
+                <Text style={styles.statusValueText}>{totalReconnectAttempts}</Text>
+              </View>
+            )}
+          </View>
+        ) : (
+          <></>
+        )}
 
         {/* Bulk Actions - Moved to very bottom */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Bulk Actions</Text>
-          <Text style={styles.cardSubtitle}>
-            Use these tools to reset the roster or reload data sources.
-          </Text>
-          <View style={styles.actions}>
-            <ActionButton
-              label="Import CSV/XLSX"
-              variant="secondary"
-              onPress={handleImportRoster}
-              disabled={!canManageRoster}
-            />
-            <ActionButton
-              label="Sync Google Sheet"
-              variant="secondary"
-              onPress={handleSyncSheet}
-              disabled={!canManageRoster}
-            />
-            <ActionButton
-              label="Reset Check-Ins"
-              variant="danger"
-              onPress={handleResetAll}
-              disabled={!selectedEvent || !canManageRoster}
-            />
+        {showBulkActions ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Bulk Actions</Text>
+            <Text style={styles.cardSubtitle}>
+              Use these tools to reset the roster or reload data sources.
+            </Text>
+            <View style={styles.actions}>
+              <ActionButton
+                label="Import CSV/XLSX"
+                variant="secondary"
+                onPress={handleImportRoster}
+                disabled={!canManageRoster}
+              />
+              <ActionButton
+                label="Sync Google Sheet"
+                variant="secondary"
+                onPress={handleSyncSheet}
+                disabled={!canManageRoster}
+              />
+              <ActionButton
+                label="Reset Check-Ins"
+                variant="danger"
+                onPress={handleResetAll}
+                disabled={!selectedEvent || !canManageRoster}
+              />
+            </View>
           </View>
-        </View>
+        ) : (
+          <>
+            {/* TODO: Enable Bulk Actions when functionality is implemented */}
+          </>
+        )}
 
         <RosterImportModal
           visible={importModalVisible}
