@@ -1,6 +1,14 @@
+/**
+ * Lintnotes
+ * - Purpose: Send and resend event invitations via a Supabase Edge Function; validates access using an RLS-safe query.
+ * - Exports: InviteUserData (type), inviteUserToEvent, resendInvitation
+ * - Major deps: services/supabase, expo-linking/Constants (for redirect), fetch to Edge Function endpoint
+ * - Side effects: Network requests to Supabase functions; logs diagnostic info.
+ */
 import { getSupabaseClient } from './supabase';
 import type { EventRole } from './permissions';
 import * as Linking from "expo-linking";
+import Constants from 'expo-constants';
 
 export type InviteUserData = {
   email: string;
@@ -14,13 +22,15 @@ export type InviteUserData = {
  * Production: Uses HTTPS domain for deployed app
  */
 function getRedirectTo(): string {
-  if (__DEV__) {
-    // Updated for Expo deep linking (dev + prod)
-    const redirectTo = Linking.createURL("/auth");
-    console.log("🔗 Using dynamic redirectTo:", redirectTo);
-    return redirectTo;
-  }
-  return 'https://your-app-domain.com/auth';
+  // Updated for Expo SDK 51+ and Supabase
+  const isExpoGo = Constants.executionEnvironment === 'storeClient';
+  const redirectTo = isExpoGo
+    ? 'https://serendipityhosting.net/event_checkin/auth'
+    : 'checkin://auth';
+  
+  console.log('🔧 Execution Environment:', Constants.executionEnvironment);
+  console.log("🔗 Using redirectTo:", redirectTo);
+  return redirectTo;
 }
 
 type AccessibleEvent = {

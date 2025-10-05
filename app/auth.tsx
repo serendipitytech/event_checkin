@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Fallback auth route/screen that navigates users after magic-link handling. Shows a short loading state then routes home.
+ * - Exports: default AuthHandler (React component)
+ * - Major deps: expo-router (useRouter), react-native ActivityIndicator/Text
+ * - Side effects: Performs navigation via router.replace after a brief timeout; no direct auth mutation here.
+ */
 import { useEffect } from "react";
 import { Text, View, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";

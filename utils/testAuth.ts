@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Developer helpers to debug auth URL generation and Supabase environment configuration.
+ * - Exports: testAuthUrlGeneration, debugSupabaseConfig
+ * - Major deps: expo-linking, expo-constants
+ * - Side effects: Console logging for diagnostics only.
+ */
 import * as ExpoLinking from 'expo-linking';
 import Constants from 'expo-constants';
 

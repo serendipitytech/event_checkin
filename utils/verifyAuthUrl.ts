@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Developer helper to log and verify the auth redirect URL used for magic-link flows.
+ * - Exports: verifyAuthUrl, getAuthRedirectUrl
+ * - Major deps: expo-linking, expo-constants
+ * - Side effects: Console logging for diagnostics only.
+ */
 import * as ExpoLinking from 'expo-linking';
 import Constants from 'expo-constants';
 
