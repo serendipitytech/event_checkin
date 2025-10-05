@@ -49,9 +49,7 @@
     "extra": {
       "eas": {
         "projectId": "4ec28d73-3633-44be-82d4-fef18e87a82e"
-      },
-      "supabaseUrl": "https://efcgzxjwystresjbcezc.supabase.co",
-      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmY2d6eGp3eXN0cmVzamJjZXpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0MTgwNTYsImV4cCI6MjA3NDk5NDA1Nn0.TGu5A16PWM3ceIVMURQO68fChj80gmkAxPYUTyMsaMs"
+      }
     },
     "owner": "serendipitytech"
   }
