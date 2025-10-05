@@ -13,6 +13,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { View, Text, StyleSheet } from 'react-native';
 
 import { SupabaseProvider } from '../contexts/SupabaseContext';
+import { validateEnv } from '../src/utils/validateEnv';
 
 // --- Environment Debug Banner ---
 // Lintnotes
@@ -57,9 +58,11 @@ export default function RootLayout() {
     // Place global side effects here such as warm-up fetches or font loading.
   }, []);
 
+  const hideBanner = (envSummary.env || '').toLowerCase() === 'production';
+
   return (
     <>
-      <EnvironmentBanner />
+      {!hideBanner && <EnvironmentBanner />}
       <SupabaseProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <StatusBar style="light" />
@@ -71,3 +74,5 @@ export default function RootLayout() {
     </>
   );
 }
+// Validate environment variables on module load
+validateEnv();
