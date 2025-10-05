@@ -8,7 +8,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "test": "jest"
+    "test": "jest",
+    "lint:notes": "node scripts/lintnotes-check.mjs",
+    "lint:notes:report": "node scripts/lintnotes-check.mjs --report"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",

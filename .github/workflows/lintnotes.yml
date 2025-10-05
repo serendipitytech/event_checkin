@@ -1,0 +1,25 @@
+name: Lintnotes
+
+on:
+  pull_request:
+  push:
+    branches: [ main, feature/*, fix/*, chore/* ]
+
+jobs:
+  lintnotes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install (ci)
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Lintnotes check
+        run: npm run lint:notes:report
+
