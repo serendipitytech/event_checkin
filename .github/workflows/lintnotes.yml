@@ -17,9 +17,5 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install (ci)
-        run: npm ci --prefer-offline --no-audit --no-fund
-
-      - name: Lintnotes check
-        run: npm run lint:notes:report
-
+      - name: Lintnotes check (no install needed)
+        run: node scripts/lintnotes-check.mjs --report
