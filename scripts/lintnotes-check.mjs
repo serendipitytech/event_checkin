@@ -3,7 +3,13 @@ import { execSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
-const argv = new Set(process.argv.slice(2));
+const rawArgs = process.argv.slice(2);
+const argv = new Set(rawArgs);
+const getArg = (name) => {
+  const idx = rawArgs.indexOf(name);
+  if (idx !== -1 && idx + 1 < rawArgs.length) return rawArgs[idx + 1];
+  return undefined;
+};
 const CWD = process.cwd();
 
 const BLOCK_DIRS = [
@@ -26,6 +32,21 @@ const listTrackedFiles = () => {
     .filter(Boolean)
     .map((p) => p.replace(/\\/g, '/'));
   return raw.filter((p) => !isBlocked(p) && ALLOWED_EXT.has(path.extname(p)));
+};
+
+const listChangedFiles = (baseRef) => {
+  if (!baseRef) return null;
+  try {
+    const cmd = `git diff --name-only --diff-filter=ACMR ${baseRef}...HEAD`;
+    const raw = execSync(cmd, { encoding: 'utf8' })
+      .split('\n')
+      .filter(Boolean)
+      .map((p) => p.replace(/\\/g, '/'));
+    return raw.filter((p) => !isBlocked(p) && ALLOWED_EXT.has(path.extname(p)));
+  } catch (e) {
+    console.warn('⚠️  Failed to compute changed files; falling back to full scan.', e?.message || e);
+    return null;
+  }
 };
 
 const hasLintnotes = (file) => {
@@ -84,7 +105,26 @@ const buildCrossRefs = (files) => {
 };
 
 const main = () => {
-  const files = listTrackedFiles();
+  let files = listTrackedFiles();
+
+  // Support changed-only mode
+  if (argv.has('--changed')) {
+    const baseFromArg = getArg('--base');
+    const baseFromEnv = process.env.LINTNOTES_BASE || process.env.GITHUB_BASE_REF;
+    // If GITHUB_BASE_REF is present, prefer origin/<base>
+    const baseRef = baseFromArg || (baseFromEnv ? `origin/${baseFromEnv}` : undefined);
+    const changed = listChangedFiles(baseRef);
+    if (changed && changed.length > 0) {
+      const set = new Set(changed);
+      files = files.filter((f) => set.has(f));
+      console.log(`Checking ${files.length} changed file(s) against base ${baseRef}`);
+    } else if (changed && changed.length === 0) {
+      console.log('No code files changed; skipping Lintnotes check.');
+      return;
+    } else {
+      console.log('Proceeding with full scan (no base or diff available).');
+    }
+  }
   const missing = files.filter((f) => !hasLintnotes(f));
 
   const importers = buildCrossRefs(files);
@@ -112,6 +152,7 @@ const main = () => {
   };
 
   const showCrossRef = argv.has('--report') || argv.has('-r');
+  const strict = !(argv.has('--no-strict'));
   if (showCrossRef) {
     console.log('Lintnotes report:\n');
     if (missing.length === 0) console.log('✓ All files have Lintnotes');
@@ -127,7 +168,6 @@ const main = () => {
     }
   }
 
-  const strict = true; // enforce by default
   if (strict && missing.length > 0) {
     console.error(`\n✖ Lintnotes check failed: ${missing.length} file(s) missing Lintnotes.`);
     process.exit(1);

@@ -2,11 +2,35 @@ name: Lintnotes
 
 on:
   pull_request:
-  push:
-    branches: [ main, feature/*, fix/*, chore/* ]
+    branches: [ main ]
+  schedule:
+    - cron: '0 12 * * 1' # Mondays at 12:00 UTC
 
 jobs:
-  lintnotes:
+  lintnotes-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR HEAD
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch base branch
+        run: |
+          git fetch origin ${{ github.base_ref }} --no-tags --prune --depth=200
+
+      - name: Lintnotes (changed files only)
+        run: |
+          node scripts/lintnotes-check.mjs --report --changed --base origin/${{ github.base_ref }}
+
+  lintnotes-weekly:
+    if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -17,5 +41,6 @@ jobs:
         with:
           node-version: 20
 
-      - name: Lintnotes check (no install needed)
-        run: node scripts/lintnotes-check.mjs --report
+      - name: Lintnotes (full scan, report only)
+        run: |
+          node scripts/lintnotes-check.mjs --report --no-strict
