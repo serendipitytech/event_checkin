@@ -5,51 +5,90 @@
  * - Major deps: expo-router Stack, expo-status-bar, react-native-gesture-handler, SupabaseProvider (local context)
  * - Side effects: Initializes a no-op useEffect placeholder; otherwise none. Sets StatusBar style and defines stack screens.
  */
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, Platform, AppState } from 'react-native';
 
 import { SupabaseProvider } from '../contexts/SupabaseContext';
 import { validateEnv } from '../src/utils/validateEnv';
 
+// Validate environment variables on module load
+validateEnv();
+
 // --- Environment Debug Banner ---
 // Lintnotes
 // - Purpose: Visual + console summary of environment and redirect URL for quick verification during dev/test.
-// - Side effects: Console logging of non-secret environment values on mount.
-const envSummary = {
-  env: process.env.EXPO_PUBLIC_ENV,
-  supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
-  redirectUrl: process.env.EXPO_PUBLIC_REDIRECT_URL,
-};
-
+// - Side effects: Uses AppState to auto-hide when background; hides in production.
 export function EnvironmentBanner() {
-  console.log('=== ENVIRONMENT DEBUG ===');
-  console.log(envSummary);
+  const env = process.env.EXPO_PUBLIC_ENV;
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const redirectUrl = process.env.EXPO_PUBLIC_REDIRECT_URL;
+
+  const [visible, setVisible] = useState(true);
+
+  // Hide banner in production or when app goes background (proxy for screenshots/recording constraints)
+  useEffect(() => {
+    if (env === 'production') {
+      setVisible(false);
+      return;
+    }
+
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background') setVisible(false);
+      if (state === 'active') setVisible(true);
+    });
+
+    return () => sub.remove();
+  }, [env]);
+
+  if (!visible) return null;
 
   return (
-    <View style={envStyles.banner}>
-      <Text style={envStyles.text}>🌎 {(envSummary.env || 'unknown').toString().toUpperCase()} MODE</Text>
-      {!!envSummary.redirectUrl && <Text style={envStyles.small}>🔗 {envSummary.redirectUrl}</Text>}
-    </View>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.banner}>
+        <Text style={styles.envText}>🌍 {(env || 'unknown').toUpperCase()} MODE</Text>
+        {redirectUrl ? (
+          <Text style={styles.subtext} numberOfLines={1}>
+            {redirectUrl}
+          </Text>
+        ) : (
+          <Text style={styles.subtextMissing}>⚠️ Missing redirect URL</Text>
+        )}
+        {supabaseUrl && (
+          <Text style={styles.subtext} numberOfLines={1}>
+            {supabaseUrl}
+          </Text>
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
-const envStyles = StyleSheet.create({
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    zIndex: 1000,
+  },
   banner: {
-    backgroundColor: '#222',
-    padding: 8,
+    paddingTop: Platform.OS === 'ios' ? 4 : 0,
+    paddingHorizontal: 8,
+    paddingBottom: 4,
   },
-  text: {
-    color: '#00FF88',
-    fontSize: 16,
-    fontWeight: '600',
+  envText: {
+    color: '#00FF00',
+    fontWeight: 'bold',
+    fontSize: 12,
   },
-  small: {
-    color: '#aaa',
+  subtext: {
+    color: '#ffffff',
     fontSize: 10,
+  },
+  subtextMissing: {
+    color: '#ff6666',
+    fontSize: 10,
+    fontStyle: 'italic',
   },
 });
 
@@ -58,7 +97,7 @@ export default function RootLayout() {
     // Place global side effects here such as warm-up fetches or font loading.
   }, []);
 
-  const hideBanner = (envSummary.env || '').toLowerCase() === 'production';
+  const hideBanner = (process.env.EXPO_PUBLIC_ENV || '').toLowerCase() === 'production';
 
   return (
     <>
@@ -74,5 +113,3 @@ export default function RootLayout() {
     </>
   );
 }
-// Validate environment variables on module load
-validateEnv();
