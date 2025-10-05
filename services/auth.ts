@@ -89,6 +89,12 @@ export const handleAuthCallback = async (url: string): Promise<void> => {
   const fragment = parseFragment(url);
   const { access_token, refresh_token } = fragment;
 
+  // Early return for normal app launches without auth tokens
+  if (!access_token && !refresh_token) {
+    console.log("ℹ️ No auth fragment detected — likely a normal app launch, skipping callback.");
+    return;
+  }
+
   if (access_token && refresh_token) {
     console.log("✅ Tokens detected, setting session...");
     const { data, error } = await supabase.auth.setSession({
@@ -99,12 +105,14 @@ export const handleAuthCallback = async (url: string): Promise<void> => {
 
     if (data?.session) {
       console.log("✅ Signed in user:", data.user?.email);
+      console.log("🔑 Supabase session restored from storage or token exchange.");
       Alert.alert("Welcome!", "You're now signed in.");
     } else {
       throw new Error("No session returned from Supabase.");
     }
   } else {
-    console.warn("❌ No tokens found in callback URL.");
+    // Malformed token case: we had a fragment but were missing one of the tokens
+    console.warn("❌ Incomplete auth tokens found in callback URL.");
     Alert.alert("Sign-in Failed", "Invalid or expired magic link.");
   }
 };
@@ -115,12 +123,20 @@ export const initializeDeepLinkHandling = async (): Promise<() => void> => {
     const initialUrl = await Linking.getInitialURL();
     if (initialUrl) {
       console.log("App opened via URL:", initialUrl);
-      await handleAuthCallback(initialUrl);
+      if (initialUrl.includes('#access_token')) {
+        await handleAuthCallback(initialUrl);
+      } else {
+        console.log("No auth fragment in initial URL; skipping callback handler.");
+      }
     }
 
     const subscription = Linking.addEventListener("url", (event) => {
       console.log("Received deep link:", event.url);
-      handleAuthCallback(event.url);
+      if (event.url?.includes('#access_token')) {
+        handleAuthCallback(event.url);
+      } else {
+        console.log("No auth fragment in deep link; skipping callback handler.");
+      }
     });
 
     return () => subscription.remove();
