@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Modal UI to collect interest/contact info from potential users and store it in Supabase.
+ * - Exports: RequestInfoModal (React component)
+ * - Major deps: react-native primitives, services/supabase client
+ * - Side effects: Inserts a record into the interest_requests table when submitting.
+ */
 import React, { useState } from 'react';
 import {
   View,

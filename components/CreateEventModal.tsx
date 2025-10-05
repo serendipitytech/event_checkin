@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Modal UI to create a new event and org, then notify caller with the new event ID.
+ * - Exports: CreateEventModal (React component)
+ * - Major deps: react-native primitives, @expo/vector-icons/Ionicons, services/eventManagement.createEvent
+ * - Side effects: Calls Supabase RPC via service; updates local state only.
+ */
 import React, { useState } from 'react';
 import {
   Alert,

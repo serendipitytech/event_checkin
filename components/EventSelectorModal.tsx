@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Modal UI to pick the active event from a list of accessible events.
+ * - Exports: EventSelectorModal (React component)
+ * - Major deps: react-native primitives; EventSummary (services/events)
+ * - Side effects: None; informs parent via onSelectEvent.
+ */
 import React from 'react';
 import {
   Modal,

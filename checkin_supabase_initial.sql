@@ -1,3 +1,7 @@
+-- Lintnotes
+-- - Purpose: Initial schema and RLS setup for organizations, events, attendees, and related access helpers.
+-- - Scope: DDL for tables, policies, functions, and realtime RPCs used by the mobile app.
+-- - Side effects: Creates/updates database objects in the 'public' schema; should be run in Supabase project.
 -- DATA MODEL SCRIPTS
 -- Organizations (tenants)
 create table public.organizations (

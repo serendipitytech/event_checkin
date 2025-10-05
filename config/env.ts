@@ -1,3 +1,11 @@
+/**
+ * Lintnotes
+ * - Purpose: Centralize environment-derived configuration for Supabase and auth deep links.
+ * - Exports: config object, and constants SUPABASE_URL/SUPABASE_ANON_KEY/REDIRECT_URL/DEEP_LINK_SCHEME/AUTH_URLS,
+ *            plus validateConfig() and getDebugInfo().
+ * - Major deps: expo-constants, expo-linking
+ * - Side effects: Throws if required env/config values are missing when validateConfig() is called.
+ */
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 

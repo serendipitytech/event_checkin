@@ -1,3 +1,11 @@
+/**
+ * Lintnotes
+ * - Purpose: Lightweight in-memory event bus for attendee list refreshes and auto-refresh interval sharing.
+ * - Exports: RefreshOptions/RefreshListener (types), addRefreshListener, emitRefreshAttendees,
+ *            addAutoRefreshListener, setAutoRefreshInterval, getAutoRefreshInterval.
+ * - Major deps: None (module-level sets/timers only).
+ * - Side effects: Stores listeners and a shared interval value in module scope.
+ */
 export type RefreshOptions = {
   silent?: boolean;
 };
