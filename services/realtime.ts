@@ -1,3 +1,11 @@
+/**
+ * Lintnotes
+ * - Purpose: Manage Supabase Realtime subscriptions with reconnection/backoff logic and connection status tracking.
+ * - Exports: RealtimeSubscriptionOptions/RealtimeConnectionStatus (types), realtimeManager (singleton),
+ *            subscribeToAttendees, subscribeToEvents, getRealtimeConnectionStatus, getAllRealtimeConnectionStatuses, cleanupRealtimeConnections.
+ * - Major deps: @supabase/supabase-js RealtimeChannel, services/supabase
+ * - Side effects: Opens/closes realtime channels; schedules timeouts for reconnect attempts; stores state in module singletons.
+ */
 import { getSupabaseClient } from './supabase';
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 

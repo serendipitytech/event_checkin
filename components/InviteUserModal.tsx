@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Modal UI to invite a user to an event with a selected role; wraps calls to invitations service.
+ * - Exports: InviteUserModal (React component)
+ * - Major deps: react-native primitives, @expo/vector-icons/Ionicons, services/invitations, services/permissions
+ * - Side effects: Performs network request to an Edge Function via service when sending invite.
+ */
 import React, { useState } from 'react';
 import {
   Alert,

@@ -26,3 +26,7 @@ CREATE POLICY "org_members_manage_by_admins"
     )
   )
   WITH CHECK (true);
+-- Lintnotes
+-- - Purpose: SQL patch to address recursion or RLS interaction issues in policies or RPCs.
+-- - Scope: Intended to be run against the Supabase project to adjust policy behavior.
+-- - Side effects: Alters database policies/functions; verify in staging before prod.

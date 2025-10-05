@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Small role/permission helpers to gate UI and actions by event role.
+ * - Exports: EventRole (type) and a set of canX()/describeRole()/normalizeRole utilities.
+ * - Major deps: None (pure functions).
+ * - Side effects: None (stateless).
+ */
 export type EventRole =
   | 'manager'
   | 'checker'

@@ -1,3 +1,12 @@
+/**
+ * Lintnotes
+ * - Purpose: CRUD-style helpers and realtime wiring for event attendees, plus bulk operations.
+ * - Exports: Attendee (type), AttendeeChange (type), fetchAttendees, subscribeAttendees, toggleCheckin,
+ *            resetAllCheckins, bulkCheckInByGroup, bulkCheckInByTable,
+ *            importAttendeesFromFile, syncFromGoogleSheet.
+ * - Major deps: @supabase/supabase-js, services/supabase, services/realtime
+ * - Side effects: Opens realtime subscription when subscribeAttendees is called; otherwise pure RPC/queries.
+ */
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 import { getSupabaseClient } from './supabase';

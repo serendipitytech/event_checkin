@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Typed Expo app config that merges env (.env) and existing config.extra into the final Expo config.
+ * - Exports: default config function (ExpoConfig)
+ * - Major deps: expo/config, dotenv (optional)
+ * - Side effects: Loads environment variables via dotenv in development if available.
+ */
 import { ConfigContext, ExpoConfig } from 'expo/config';
 
 try {

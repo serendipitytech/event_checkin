@@ -1,3 +1,11 @@
+/**
+ * Lintnotes
+ * - Purpose: Utilities to pick CSV files, parse rows, map to attendee records, and import from CSV or Google Sheets.
+ * - Exports: ImportResult/CSVRow/ImportOptions (types), pickRosterFile, parseCSV, mapCSVRowToAttendee,
+ *            importAttendeesFromCSV, importAttendeesFromGoogleSheet, validateCSVFormat
+ * - Major deps: expo-document-picker, expo-file-system, services/supabase
+ * - Side effects: File access and network fetch when importing; writes to Supabase.
+ */
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { getSupabaseClient } from './supabase';

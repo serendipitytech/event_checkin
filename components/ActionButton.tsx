@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Small presentational button with variants for consistent styling.
+ * - Exports: default ActionButton (React component)
+ * - Major deps: react-native Pressable/Text/StyleSheet
+ * - Side effects: None (UI-only).
+ */
 import { Pressable, StyleProp, StyleSheet, Text, TextStyle, ViewStyle } from 'react-native';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';

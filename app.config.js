@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Base Expo config (JS form). Specifies app metadata, deep link scheme, native identifiers, and extra env values.
+ * - Exports: default Expo config object
+ * - Major deps: dotenv (via 'dotenv/config')
+ * - Side effects: None beyond reading envs.
+ */
 import 'dotenv/config';
 
 export default {

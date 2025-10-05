@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Tab navigator layout configuring the two primary tabs and shared tab UI styling.
+ * - Exports: default TabsLayout (React component)
+ * - Major deps: expo-router Tabs, @expo/vector-icons/Ionicons
+ * - Side effects: None (navigation configuration only).
+ */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 

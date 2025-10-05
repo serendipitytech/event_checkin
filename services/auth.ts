@@ -31,6 +31,7 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
 
   const redirectTo = process.env.EXPO_PUBLIC_REDIRECT_URL;
   if (!redirectTo) {
+    console.error('Missing EXPO_PUBLIC_REDIRECT_URL environment variable');
     Alert.alert("Missing Redirect URL", "No redirect URL configured.");
     return;
   }

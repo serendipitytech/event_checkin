@@ -1,3 +1,12 @@
+/**
+ * Lintnotes
+ * - Purpose: Main Check-In screen. Lists attendees for the selected event with search/sort, supports check-in/undo,
+ *             group/table bulk actions, and realtime updates. Integrates auto-refresh and pull-to-refresh.
+ * - Exports: default CheckInScreen (React component)
+ * - Major deps: react-native UI, expo-router navigation hooks, react-native-gesture-handler Swipeable,
+ *               services/attendees, services/attendeeEvents, hooks/useSupabase, hooks/usePermissions, components/ActionButton
+ * - Side effects: Subscribes to realtime attendee changes while mounted; sets nav header options; timers for auto-refresh.
+ */
 import {
   useCallback,
   useEffect,

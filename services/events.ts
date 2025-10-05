@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Fetch the list of events the signed-in user can access, normalized for app consumption.
+ * - Exports: EventSummary (type), fetchAccessibleEvents (async)
+ * - Major deps: services/supabase client; Supabase RPC get_my_access
+ * - Side effects: None (pure data fetch/transform).
+ */
 import { getSupabaseClient } from './supabase';
 
 export type EventSummary = {

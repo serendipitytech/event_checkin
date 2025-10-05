@@ -1,3 +1,12 @@
+/**
+ * Lintnotes
+ * - Purpose: Admin/Settings screen. Manages auto-refresh settings, roster import (file/sheet), invitations,
+ *             event selection, and displays realtime connection health. Handles logged-in and logged-out views.
+ * - Exports: default AdminScreen (React component)
+ * - Major deps: react-native UI, components/* modals, services/attendees (reset/import/sync),
+ *               services/attendeeEvents (auto-refresh), hooks/useSupabase, hooks/usePermissions, hooks/useRealtime
+ * - Side effects: Triggers data mutations via services; updates shared auto-refresh interval; opens modals.
+ */
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 

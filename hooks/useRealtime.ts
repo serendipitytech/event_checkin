@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Hooks to read realtime connection health from the realtime manager; polls status periodically.
+ * - Exports: useRealtimeStatus, useRealtimeConnection
+ * - Major deps: services/realtime
+ * - Side effects: Starts/stops an interval timer while mounted (every 5s) to refresh statuses.
+ */
 import { useEffect, useState } from 'react';
 import { 
   getAllRealtimeConnectionStatuses, 

@@ -22,15 +22,21 @@ export type InviteUserData = {
  * Production: Uses HTTPS domain for deployed app
  */
 function getRedirectTo(): string {
-  // Updated for Expo SDK 51+ and Supabase
-  const isExpoGo = Constants.executionEnvironment === 'storeClient';
-  const redirectTo = isExpoGo
-    ? 'https://serendipityhosting.net/event_checkin/auth'
-    : 'checkin://auth';
-  
+  // Prefer environment-provided redirect URL
+  const envRedirect = process.env.EXPO_PUBLIC_REDIRECT_URL;
+  if (!envRedirect) {
+    console.warn('Missing EXPO_PUBLIC_REDIRECT_URL; falling back to Expo Linking URL.');
+    try {
+      // Fallback to a best-effort deep link using Expo Linking
+      return Linking.createURL('/auth');
+    } catch (e) {
+      console.error('Failed to compute fallback redirect URL:', e);
+      return 'about:blank';
+    }
+  }
   console.log('🔧 Execution Environment:', Constants.executionEnvironment);
-  console.log("🔗 Using redirectTo:", redirectTo);
-  return redirectTo;
+  console.log('🔗 Using redirectTo (env):', envRedirect);
+  return envRedirect;
 }
 
 type AccessibleEvent = {

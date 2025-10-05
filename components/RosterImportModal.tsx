@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Modal UI to import attendee rosters from CSV files or Google Sheets and report results.
+ * - Exports: RosterImportModal (React component)
+ * - Major deps: react-native primitives, @expo/vector-icons/Ionicons, services/rosterImport helpers
+ * - Side effects: Initiates file picker and network fetches when user triggers import.
+ */
 import React, { useState } from 'react';
 import {
   Alert,

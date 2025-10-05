@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Derive permission booleans and role utilities for the current event from the Supabase context.
+ * - Exports: usePermissions (hook), useRoleGuard (hook)
+ * - Major deps: React useMemo, services/permissions, hooks/useSupabase
+ * - Side effects: None (hook only computes values).
+ */
 import { useMemo } from 'react';
 import { useSupabase } from './useSupabase';
 import {

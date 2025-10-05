@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: App-wide context for Supabase client, auth session, accessible events, and selected event state.
+ * - Exports: SupabaseProvider (context provider), useSupabaseContext (hook), SupabaseContextValue (types)
+ * - Major deps: @supabase/supabase-js, React context/hooks, services: supabase, auth (deep link init), events (fetch)
+ * - Side effects: Subscribes to Supabase auth state changes; initializes deep-link handling for auth callbacks; fetches events on session change.
+ */
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';

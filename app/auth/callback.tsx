@@ -1,3 +1,10 @@
+/**
+ * Lintnotes
+ * - Purpose: Route target for Supabase auth callback deep links. Shows a brief loader then routes to home.
+ * - Exports: default AuthCallback (React component)
+ * - Major deps: expo-router (useRouter), react-native ActivityIndicator/Text
+ * - Side effects: Navigation redirect after a short timeout.
+ */
 import { useEffect } from "react";
 import { Text, View, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";

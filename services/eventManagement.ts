@@ -1,3 +1,12 @@
+/**
+ * Lintnotes
+ * - Purpose: Higher-level event management operations (create/delete events, manage invites/roles) via Supabase RPCs.
+ * - Exports: EventInvite, CreateEventData, InviteUserData (types), createEvent, deleteEvent,
+ *            inviteUserToEvent, updateUserRole, removeUserFromEvent, fetchEventInvites,
+ *            acceptEventInvite, declineEventInvite.
+ * - Major deps: services/supabase, services/permissions
+ * - Side effects: Performs database mutations through RPC calls; no module-level state.
+ */
 import { getSupabaseClient } from './supabase';
 import { canCreateEvents, canDeleteEvents, canInviteUsers, canManageRole, type EventRole } from './permissions';
 
