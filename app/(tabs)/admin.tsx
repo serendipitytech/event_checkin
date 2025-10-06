@@ -404,6 +404,25 @@ export default function AdminScreen() {
         )}
         */}
 
+        {/* Event Management — Manager-only reset */}
+        {canManageRoster && selectedEvent ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Event Management</Text>
+            <Text style={styles.cardSubtitle}>
+              Reset the entire roster's check-in state for this event.
+            </Text>
+            <View style={styles.actions}>
+              <ActionButton
+                label="Reset All Check-Ins"
+                variant="danger"
+                onPress={handleResetAll}
+              />
+            </View>
+          </View>
+        ) : (
+          <></>
+        )}
+
         {/* Real-time Status - Moved to bottom */}
         {showRealtimeStatus ? (
           <View style={styles.card}>
