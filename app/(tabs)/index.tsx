@@ -252,11 +252,15 @@ export default function CheckInScreen() {
       headerTitleAlign: 'center',
       headerTintColor: '#1f1f1f',
       headerShadowVisible: false,
+      // Use a custom background so we can round corners without warnings
       headerStyle: {
-        backgroundColor: '#ffe166', // lighter, modern yellow
-        borderBottomLeftRadius: 16,
-        borderBottomRightRadius: 16,
+        backgroundColor: 'transparent',
       },
+      headerBackground: () => (
+        <View style={styles.headerBg}>
+          <View style={styles.headerBgSheen} />
+        </View>
+      ),
       headerTitle: () => (
         <View style={styles.headerTitleWrapper}>
           <Text
@@ -805,6 +809,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 6,
     minHeight: 44,
+  },
+  headerBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#ffe166',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  headerBgSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 28,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   headerTitle: {
     fontSize: 20,
