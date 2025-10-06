@@ -256,7 +256,6 @@ export default function CheckInScreen() {
         backgroundColor: '#ffe166', // lighter, modern yellow
         borderBottomLeftRadius: 16,
         borderBottomRightRadius: 16,
-        overflow: 'hidden'
       },
       headerTitle: () => (
         <View style={styles.headerTitleWrapper}>
@@ -803,7 +802,9 @@ function applyAttendeeChange(current: Attendee[], change: AttendeeChange): Atten
 const styles = StyleSheet.create({
   headerTitleWrapper: {
     alignItems: 'center',
-    paddingVertical: 2,
+    justifyContent: 'center',
+    paddingVertical: 6,
+    minHeight: 44,
   },
   headerTitle: {
     fontSize: 20,
