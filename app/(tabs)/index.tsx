@@ -249,9 +249,14 @@ export default function CheckInScreen() {
   useLayoutEffect(() => {
     const options: NativeStackNavigationOptions = {
       headerLargeTitle: false,
-      headerTintColor: '#050505',
+      headerTitleAlign: 'center',
+      headerTintColor: '#1f1f1f',
+      headerShadowVisible: false,
       headerStyle: {
-        backgroundColor: '#f5cb08'
+        backgroundColor: '#ffe166', // lighter, modern yellow
+        borderBottomLeftRadius: 16,
+        borderBottomRightRadius: 16,
+        overflow: 'hidden'
       },
       headerTitle: () => (
         <View style={styles.headerTitleWrapper}>
@@ -797,19 +802,21 @@ function applyAttendeeChange(current: Attendee[], change: AttendeeChange): Atten
 
 const styles = StyleSheet.create({
   headerTitleWrapper: {
-    alignItems: 'flex-start'
+    alignItems: 'center',
+    paddingVertical: 2,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     fontFamily: 'System',
-    color: '#050505'
+    color: '#1f1f1f',
+    letterSpacing: 0.2,
   },
   headerSubtitle: {
     fontSize: 12,
     fontFamily: 'System',
-    color: '#1f1f1f',
-    marginTop: 2
+    color: '#3a3a3a',
+    marginTop: 4
   },
   safeArea: {
     flex: 1,
