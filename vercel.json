@@ -3,9 +3,10 @@
   "builds": [
     { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist" } }
   ],
-  "routes": [
-    { "src": "/(.*)", "dest": "/$1" }
-  ],
+    "routes": [
+      { "src": "/auth/callback", "dest": "/index.html" },
+      { "src": "/(.*)", "dest": "/$1" }
+    ],
   "env": {
     "EXPO_PUBLIC_SUPABASE_URL": "EXPO_PUBLIC_SUPABASE_URL",
     "EXPO_PUBLIC_SUPABASE_ANON_KEY": "EXPO_PUBLIC_SUPABASE_ANON_KEY",
