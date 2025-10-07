@@ -6,7 +6,7 @@
  * - Side effects: Imports URL polyfill globally; caches client instance in module scope.
  */
 import 'react-native-url-polyfill/auto';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from '../utils/safeAsyncStorage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, validateConfig } from '../config/env';
 
