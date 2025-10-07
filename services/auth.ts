@@ -5,7 +5,7 @@
  * - Major deps: react-native Alert, expo-linking, expo-constants, services/supabase
  * - Side effects: Displays prompts/alerts, subscribes to Linking URL events, sets Supabase session when tokens present.
  */
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import * as Linking from "expo-linking";
 import Constants from "expo-constants";
 import { getSupabaseClient } from "./supabase";
@@ -38,46 +38,69 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
 
   console.log("🔗 Using redirectTo:", redirectTo);
   console.log("🔧 Execution Environment:", Constants.executionEnvironment);
+  // Web: use window.prompt; Native: use Alert.prompt
+  if (Platform.OS === 'web') {
+    // Web prompt fallback
+    const input = (typeof window !== 'undefined' && window.prompt
+      ? window.prompt('Enter your email to sign in:')
+      : '') || '';
 
+    const email = input.trim();
+    if (!email) return;
+
+    try {
+      console.log('📨 Sending magic link to (web):', email);
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: redirectTo },
+      });
+      if (error) throw error;
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert('Check your email for a magic link.');
+      }
+    } catch (err) {
+      console.error('Magic link error (web):', err);
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert(err instanceof Error ? err.message : 'Unexpected error');
+      }
+    }
+    return;
+  }
+
+  // Native (iOS/Android)
   Alert.prompt(
-    "Sign In",
-    "Enter your email to receive a magic link",
+    'Sign In',
+    'Enter your email to receive a magic link',
     [
-      { text: "Cancel", style: "cancel" },
+      { text: 'Cancel', style: 'cancel' },
       {
-        text: "Send Link",
+        text: 'Send Link',
         onPress: async (email?: string) => {
           if (!email?.trim()) {
-            Alert.alert("Error", "Please enter a valid email address.");
+            Alert.alert('Error', 'Please enter a valid email address.');
             return;
           }
 
           try {
-            console.log("📨 Sending magic link to:", email.trim());
-            const { data, error } = await supabase.auth.signInWithOtp({
+            console.log('📨 Sending magic link to (native):', email.trim());
+            const { error } = await supabase.auth.signInWithOtp({
               email: email.trim(),
               options: { emailRedirectTo: redirectTo },
             });
 
             if (error) throw error;
 
-            Alert.alert(
-              "Check Your Email",
-              "Tap the link in your email to sign in."
-            );
+            Alert.alert('Check Your Email', 'Tap the link in your email to sign in.');
           } catch (err) {
-            console.error("Magic link error:", err);
-            Alert.alert(
-              "Sign-in Failed",
-              err instanceof Error ? err.message : "Unexpected error"
-            );
+            console.error('Magic link error (native):', err);
+            Alert.alert('Sign-in Failed', err instanceof Error ? err.message : 'Unexpected error');
           }
         },
       },
     ],
-    "plain-text",
-    "",
-    "email-address"
+    'plain-text',
+    '',
+    'email-address'
   );
 };
 
