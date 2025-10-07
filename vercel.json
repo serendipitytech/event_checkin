@@ -1,0 +1,15 @@
+{
+    "version": 2,
+    "builds": [
+      { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist" } }
+    ],
+    "routes": [
+      { "src": "/(.*)", "dest": "/$1" }
+    ],
+    "env": {
+      "EXPO_PUBLIC_SUPABASE_URL": "@expo_public_supabase_url",
+      "EXPO_PUBLIC_SUPABASE_ANON_KEY": "@expo_public_supabase_anon_key",
+      "EXPO_PUBLIC_REDIRECT_URL": "@expo_public_redirect_url",
+      "EXPO_PUBLIC_ENV": "production"
+    }
+  }
