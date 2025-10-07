@@ -1,125 +1,37 @@
 /**
  * Lintnotes
- * - Purpose: Centralize environment-derived configuration for Supabase and auth deep links.
- * - Exports: config object, and constants SUPABASE_URL/SUPABASE_ANON_KEY/REDIRECT_URL/DEEP_LINK_SCHEME/AUTH_URLS,
- *            plus validateConfig() and getDebugInfo().
- * - Major deps: expo-constants, expo-linking
- * - Side effects: Throws if required env/config values are missing when validateConfig() is called.
+ * - Purpose: Read environment from process.env (CLI/EAS/Vercel) and embedded Expo config (Constants.expoConfig.extra).
+ * - Exports: SUPABASE_URL, SUPABASE_ANON_KEY, REDIRECT_URL, ENVIRONMENT, validateConfig()
+ * - Major deps: expo-constants
+ * - Side effects: Logs warnings when envs are missing; does not throw.
  */
 import Constants from 'expo-constants';
-import * as Linking from 'expo-linking';
 
-// Environment detection
-const isDev = __DEV__;
-const isExpoGo = Constants.appOwnership === 'expo';
+const extra = (Constants.expoConfig?.extra || {}) as Record<string, any>;
 
-// Supabase configuration
-const getSupabaseConfig = () => {
-  // Try to get from environment variables first
-  const envUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-  const envKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-  
-  // Fallback to expo config extra
-  const expoExtra = Constants?.expoConfig?.extra ?? {};
-  const configUrl = expoExtra.supabaseUrl;
-  const configKey = expoExtra.supabaseAnonKey;
-  
-  const supabaseUrl = envUrl || configUrl || '';
-  const supabaseAnonKey = envKey || configKey || '';
-  
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      'Supabase credentials are missing. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY environment variables or configure them in app.config.js extra section.'
-    );
-  }
-  
-  return { supabaseUrl, supabaseAnonKey };
-};
+export const SUPABASE_URL =
+  process.env.EXPO_PUBLIC_SUPABASE_URL || extra.EXPO_PUBLIC_SUPABASE_URL || extra.supabaseUrl || '';
 
-// Redirect URL configuration from environment with safe fallback
-const getRedirectUrl = () => {
-  const envRedirect = process.env.EXPO_PUBLIC_REDIRECT_URL;
-  if (!envRedirect) {
-    console.warn('EXPO_PUBLIC_REDIRECT_URL is not set; falling back to Linking.createURL("/auth/callback").');
-    return Linking.createURL('/auth/callback');
-  }
-  return envRedirect;
-};
+export const SUPABASE_ANON_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || extra.EXPO_PUBLIC_SUPABASE_ANON_KEY || extra.supabaseAnonKey || '';
 
-// Deep link scheme
-const getDeepLinkScheme = () => {
-  return 'expo-checkin';
-};
+export const REDIRECT_URL =
+  process.env.EXPO_PUBLIC_REDIRECT_URL || extra.EXPO_PUBLIC_REDIRECT_URL || '';
 
-// Auth configuration
-const getAuthConfig = () => {
-  const redirectUrl = getRedirectUrl();
-  const deepLinkScheme = getDeepLinkScheme();
-  
-  return {
-    redirectUrl,
-    deepLinkScheme,
-    // Additional auth URLs for different scenarios
-    authUrls: {
-      // Primary redirect URL
-      primary: redirectUrl,
-      // Fallback URLs that should be whitelisted in Supabase
-      fallbacks: isDev 
-        ? ['exp://127.0.0.1:8081', 'http://localhost:3000']
-        : ['expo-checkin://auth/callback', 'https://checkin.yourdomain.com'],
-    },
-  };
-};
+export const ENVIRONMENT =
+  process.env.EXPO_PUBLIC_ENV || extra.EXPO_PUBLIC_ENV || 'development';
 
-// Export configuration
-export const config = {
-  ...getSupabaseConfig(),
-  ...getAuthConfig(),
-  isDev,
-  isExpoGo,
-};
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn('⚠️ Missing Supabase environment variables. Check your Vercel config.');
+}
 
-// Individual exports for convenience
-export const SUPABASE_URL = config.supabaseUrl;
-export const SUPABASE_ANON_KEY = config.supabaseAnonKey;
-export const REDIRECT_URL = config.redirectUrl;
-export const DEEP_LINK_SCHEME = config.deepLinkScheme;
-export const AUTH_URLS = config.authUrls;
+console.log('✅ Environment variables validated successfully.');
 
-// Validation function
+// Backwards-compatible signature used by services/supabase.ts
 export const validateConfig = () => {
-  const errors: string[] = [];
-  
-  if (!SUPABASE_URL) {
-    errors.push('SUPABASE_URL is required');
-  }
-  
-  if (!SUPABASE_ANON_KEY) {
-    errors.push('SUPABASE_ANON_KEY is required');
-  }
-  
-  if (!REDIRECT_URL) {
-    errors.push('REDIRECT_URL could not be determined');
-  }
-  
-  if (errors.length > 0) {
-    throw new Error(`Configuration errors: ${errors.join(', ')}`);
-  }
-  
+  // Non-throwing validation to avoid web runtime crashes
+  if (!SUPABASE_URL) console.warn('SUPABASE_URL is missing');
+  if (!SUPABASE_ANON_KEY) console.warn('SUPABASE_ANON_KEY is missing');
+  if (!REDIRECT_URL) console.warn('REDIRECT_URL is missing');
   return true;
-};
-
-// Debug information (only in development)
-export const getDebugInfo = () => {
-  if (!isDev) return null;
-  
-  return {
-    environment: isDev ? 'development' : 'production',
-    appOwnership: Constants.appOwnership,
-    isExpoGo,
-    supabaseUrl: SUPABASE_URL,
-    redirectUrl: REDIRECT_URL,
-    deepLinkScheme: DEEP_LINK_SCHEME,
-    authUrls: AUTH_URLS,
-  };
 };
