@@ -8,6 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "build": "expo export --platform web",
     "test": "jest",
     "lint:notes": "node scripts/lintnotes-check.mjs",
     "lint:notes:report": "node scripts/lintnotes-check.mjs --report"
