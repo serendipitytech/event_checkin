@@ -72,7 +72,7 @@ export default {
       EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
       EXPO_PUBLIC_REDIRECT_URL:
         process.env.EXPO_PUBLIC_REDIRECT_URL ||
-        'https://my-event-checkin.vercel.app/auth/callback',
+        'https://checkin.serendipitytechnology.com/auth/callback',
       EXPO_PUBLIC_ENV: process.env.EXPO_PUBLIC_ENV || 'production',
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
