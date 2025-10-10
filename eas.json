@@ -7,15 +7,21 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "envFile": ".env.development"
+      "env": {
+        "EXPO_PUBLIC_ENV": "development"
+      }
     },
     "preview": {
       "distribution": "internal",
-      "envFile": ".env.development"
+      "env": {
+        "EXPO_PUBLIC_ENV": "development"
+      }
     },
     "production": {
       "autoIncrement": true,
-      "envFile": ".env.production"
+      "env": {
+        "EXPO_PUBLIC_ENV": "production"
+      }
     }
   },
   "submit": {

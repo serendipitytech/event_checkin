@@ -1,256 +1,94 @@
--- Fix infinite recursion in organization_members RLS policy
--- The issue: org_members_select_self policy references my_orgs view,
--- but my_orgs view references organization_members table, creating circular dependency
+-- =============================================================
+-- Demo Attendee Generator for QA
+-- Author: ChatGPT (Amber) ✨
+-- =============================================================
 
--- Drop the problematic policy
-DROP POLICY IF EXISTS "org_members_select_self" ON public.organization_members;
-
--- Recreate the policy without the circular reference
--- Users can see their own memberships directly, no need to reference my_orgs
-CREATE POLICY "org_members_select_self"
-  ON public.organization_members FOR SELECT
-  USING (user_id = auth.uid());
-
--- Also fix the org_members_manage_by_admins policy to avoid the same issue
-DROP POLICY IF EXISTS "org_members_manage_by_admins" ON public.organization_members;
-
--- Recreate with direct check instead of referencing my_orgs
-CREATE POLICY "org_members_manage_by_admins"
-  ON public.organization_members FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.organization_members m
-      WHERE m.org_id = organization_members.org_id
-        AND m.user_id = auth.uid()
-        AND m.role IN ('owner','admin')
-    )
-  )
-  WITH CHECK (true);
-
--- Reset all check-ins for an event
-CREATE OR REPLACE FUNCTION public.reset_attendees(p_event_id uuid)
-RETURNS void
-LANGUAGE sql SECURITY DEFINER
-AS $$
-  UPDATE public.attendees
-  SET checked_in = false,
-      checked_in_at = null,
-      checked_in_by = null,
-      updated_at = now()
-  WHERE event_id = p_event_id
-    AND event_id IN (SELECT event_id FROM public.my_events);
-$$;
-
+-- ⚠️ Toggle: set TRUE if you want to clear existing demo data
 DO $$
-DECLARE
-  v_user_id uuid;
-  v_org_id uuid;
-  v_event_id uuid;
 BEGIN
-  -- 1. Get user ID from Supabase auth.users
-  SELECT id INTO v_user_id 
-  FROM auth.users 
-  WHERE email = 'troy.shimkus@gmail.com';
-
-  -- 2. Create organization
-  v_org_id := gen_random_uuid();
-  INSERT INTO organizations (id, name) 
-  VALUES (v_org_id, 'Demo Organization');
-
-  -- 3. Create event
-  v_event_id := gen_random_uuid();
-  INSERT INTO events (id, org_id, name)
-  VALUES (v_event_id, v_org_id, 'Demo Event');
-
-  -- 4. Link user to event as manager
-  INSERT INTO event_members (event_id, user_id, role)
-  VALUES (v_event_id, v_user_id, 'manager');
-
-  -- 5. Seed 20 attendees
-  FOR i IN 1..20 LOOP
-    INSERT INTO attendees (id, event_id, full_name, checked_in)
-    VALUES (gen_random_uuid(), v_event_id, 'Attendee ' || i, false);
-  END LOOP;
-
-END $$;
-
-
-More variety Demo data
-DO $$
-DECLARE
-  v_user_id uuid;
-  v_org_id uuid;
-  v_event_id uuid;
-  v_group text;
-  v_ticket text;
-  v_table int;
-BEGIN
-  -- 1. Get user ID from Supabase auth.users
-  SELECT id INTO v_user_id 
-  FROM auth.users 
-  WHERE email = 'troy.shimkus@gmail.com';
-
-  -- 2. Reuse the same organization
-  SELECT id INTO v_org_id 
-  FROM organizations 
-  ORDER BY created_at ASC 
-  LIMIT 1;
-
-  -- 3. Create a second event
-  v_event_id := gen_random_uuid();
-  INSERT INTO events (id, org_id, name)
-  VALUES (v_event_id, v_org_id, 'Demo Event 2');
-
-  -- 4. Link user to new event as manager
-  INSERT INTO event_members (event_id, user_id, role)
-  VALUES (v_event_id, v_user_id, 'manager');
-
-  -- 5. Seed 50 attendees with randomized fields
-  FOR i IN 1..50 LOOP
-    -- Assign group (5 groups)
-    v_group := CASE (i % 5)
-      WHEN 0 THEN 'Group A'
-      WHEN 1 THEN 'Group B'
-      WHEN 2 THEN 'Group C'
-      WHEN 3 THEN 'Group D'
-      ELSE 'Group E'
-    END;
-
-    -- Assign ticket type (3 options)
-    v_ticket := CASE (i % 3)
-      WHEN 0 THEN 'General'
-      WHEN 1 THEN 'VIP'
-      ELSE 'Student'
-    END;
-
-    -- Assign table number randomly between 1–10
-    v_table := (floor(random() * 10) + 1)::int;
-
-    INSERT INTO attendees (id, event_id, full_name, group_name, table_number, ticket_type, checked_in)
-    VALUES (
-      gen_random_uuid(),
-      v_event_id,
-      'Event2 Attendee ' || i,
-      v_group,
-      v_table,
-      v_ticket,
-      false
+  IF TRUE THEN  -- change to FALSE if you want to append instead
+    DELETE FROM public.attendees
+    WHERE event_id IN (
+      '5e764751-1839-4df3-8546-c3153666a457',
+      'd76a60fb-a423-4853-8e8a-b84406dad5ff'
     );
-  END LOOP;
-
+  END IF;
 END $$;
 
--- Replace these UUIDs with your actual event and user IDs
--- You can fetch event IDs with: SELECT id, name FROM events;
--- And user IDs with: SELECT id, email FROM auth.users;
+-- =============================================================
+-- Common data arrays
+-- =============================================================
+DO $$
+DECLARE
+  first_names text[] := ARRAY[
+    'Ava','Liam','Olivia','Noah','Emma','Ethan','Sophia','Mason','Isabella','Logan',
+    'Mia','Lucas','Amelia','Jackson','Harper','Aiden','Evelyn','Caden','Ella','Grayson',
+    'Scarlett','Leo','Aria','Wyatt','Chloe','Ezra','Layla','Henry','Ellie','Sebastian',
+    'Nora','Owen','Hazel','Elijah','Luna','Caleb','Zoey','Jack','Lily','James'
+  ];
+  ticket_types text[] := ARRAY['VIP','General','Student'];
+  sponsors text[] := ARRAY['Sponsor A','Sponsor B','Sponsor C','Sponsor D'];
+  tables text[] := ARRAY['1','2','3','4','5','6','7','8','9','10'];
 
--- Example: Add an existing user as manager of Event 1
-INSERT INTO event_members (event_id, user_id, role)
-VALUES (
-  'EVENT_UUID_1', -- e.g. 'a8178499-e39e-4858-9ef3-369026d5d647'
-  'USER_UUID_1',  -- e.g. 'fc39194d-0e1d-4270-8b8e-cb27715115b9'
-  'manager'
-);
+  sponsor_counts jsonb := '{}'::jsonb;
+  name text;
+  sponsor text;
+  ticket text;
+  tbl text;
+  i int;
+  total int;
+  event1 uuid := '5e764751-1839-4df3-8546-c3153666a457';
+  event2 uuid := 'd76a60fb-a423-4853-8e8a-b84406dad5ff';
+  evt uuid;
+  event_name text;
+BEGIN
+  -- Helper: get next sponsor with available capacity
+  FOR evt, total, event_name IN
+    SELECT e.id, t.total, e.name
+    FROM (VALUES
+      (event1, 40, 'Demo Event 1'),
+      (event2, 60, 'Demo Event 2')
+    ) AS t(id, total, name)
+    JOIN events e ON e.id = t.id
+  LOOP
+    sponsor_counts := '{}'::jsonb;  -- reset counts per event
+    FOR i IN 1..total LOOP
+      name := first_names[(random() * (array_length(first_names,1)-1) + 1)::int];
+      ticket := ticket_types[(random() * (array_length(ticket_types,1)-1) + 1)::int];
+      tbl := tables[(random() * (array_length(tables,1)-1) + 1)::int];
 
--- Example: Add checker to Event 1
-INSERT INTO event_members (event_id, user_id, role)
-VALUES (
-  'EVENT_UUID_1',
-  'USER_UUID_2',
-  'checker'
-);
+      -- assign sponsor if <14 members
+      IF (jsonb_extract_path_text(sponsor_counts, 'Sponsor A')::int < 14 OR sponsor_counts ? 'Sponsor A' = FALSE)
+         AND random() < 0.25 THEN sponsor := 'Sponsor A';
+      ELSIF (jsonb_extract_path_text(sponsor_counts, 'Sponsor B')::int < 14 OR sponsor_counts ? 'Sponsor B' = FALSE)
+         AND random() < 0.25 THEN sponsor := 'Sponsor B';
+      ELSIF (jsonb_extract_path_text(sponsor_counts, 'Sponsor C')::int < 14 OR sponsor_counts ? 'Sponsor C' = FALSE)
+         AND random() < 0.25 THEN sponsor := 'Sponsor C';
+      ELSIF (jsonb_extract_path_text(sponsor_counts, 'Sponsor D')::int < 14 OR sponsor_counts ? 'Sponsor D' = FALSE)
+         AND random() < 0.25 THEN sponsor := 'Sponsor D';
+      ELSE
+         sponsor := 'Open Seating';
+      END IF;
 
--- Example: Add checker to Event 2
-INSERT INTO event_members (event_id, user_id, role)
-VALUES (
-  'EVENT_UUID_2',
-  'USER_UUID_3',
-  'checker'
-);
+      -- increment sponsor count
+      sponsor_counts := sponsor_counts || jsonb_build_object(
+        sponsor, coalesce((sponsor_counts ->> sponsor)::int, 0) + 1
+      );
 
--- Verify assignments
-SELECT em.event_id, e.name as event_name, em.user_id, u.email, em.role
-FROM event_members em
-JOIN events e ON e.id = em.event_id
-JOIN auth.users u ON u.id = em.user_id
-ORDER BY e.name, em.role;
+      INSERT INTO public.attendees (
+        event_id, full_name, group_name, table_number, ticket_type, checked_in
+      )
+      VALUES (
+        evt,
+        name || ' ' || event_name,
+        sponsor,
+        tbl,
+        ticket,
+        false
+      );
+    END LOOP;
+    RAISE NOTICE 'Inserted % attendees for %', total, event_name;
+  END LOOP;
+END $$;
 
--- =========================================
--- Test Script: Verify Event Memberships
--- =========================================
-
--- 1. Show all events and their members with roles
-SELECT 
-  e.id AS event_id,
-  e.name AS event_name,
-  u.email AS user_email,
-  em.role,
-  em.created_at
-FROM event_members em
-JOIN events e ON em.event_id = e.id
-JOIN auth.users u ON em.user_id = u.id
-ORDER BY e.name, em.role, u.email;
-
--- 2. Verify specific user membership (replace with test email)
-SELECT 
-  u.email,
-  e.name AS event_name,
-  em.role,
-  em.created_at
-FROM event_members em
-JOIN events e ON em.event_id = e.id
-JOIN auth.users u ON em.user_id = u.id
-WHERE u.email = 'troy.shimkus+invite3@gmail.com';
-
--- 3. Count members per event
-SELECT 
-  e.name AS event_name,
-  COUNT(*) AS total_members,
-  COUNT(*) FILTER (WHERE em.role = 'manager') AS managers,
-  COUNT(*) FILTER (WHERE em.role = 'checker') AS checkers
-FROM event_members em
-JOIN events e ON em.event_id = e.id
-GROUP BY e.name
-ORDER BY e.name;
-
--- 4. Quick check: list all users who are not yet assigned to any event
-SELECT 
-  u.email
-FROM auth.users u
-LEFT JOIN event_members em ON u.id = em.user_id
-WHERE em.user_id IS NULL
-ORDER BY u.email;
-
--- =========================================
--- Cleanup Script: Remove Test Users & Memberships
--- =========================================
--- ⚠️ WARNING: This will permanently delete test data.
--- Replace the email(s) or UUID(s) in the IN clauses before running.
--- =========================================
-
--- Delete from event_members first
-DELETE FROM event_members
-WHERE user_id IN (
-  SELECT id FROM auth.users
-  WHERE email IN (
-    'troy.shimkus+invite1@gmail.com',
-    'troy.shimkus+invite2@gmail.com',
-    'troy.shimkus+invite3@gmail.com'
-  )
-);
-
--- Then delete from auth.users
-DELETE FROM auth.users
-WHERE email IN (
-  'troy.shimkus+invite1@gmail.com',
-  'troy.shimkus+invite2@gmail.com',
-  'troy.shimkus+invite3@gmail.com'
-);
-
--- Verify cleanup
-SELECT * FROM auth.users WHERE email LIKE '%invite%';
-SELECT * FROM event_members WHERE user_id NOT IN (SELECT id FROM auth.users);
-
--- 4. (Optional) Verify cleanup
-SELECT * FROM auth.users WHERE email LIKE '%invite%';
-SELECT * FROM event_members WHERE user_id IN (SELECT id FROM target_users);
+select event_id, count(*) from attendees group by event_id;
