@@ -5,24 +5,12 @@ serve(async (req: Request) => {
   try {
     const url = new URL(req.url);
     const token = url.searchParams.get("token") ?? "";
-    const env = Deno.env.get("ENVIRONMENT") ?? "dev";
+    const scheme = Deno.env.get("PROD_SCHEME_URL") || "checkin://auth";
 
-    const expoTunnel =
-      Deno.env.get("EXPO_TUNNEL_URL") ||
-      "exp://xy9yc6w-serendipitytech-8081.exp.direct/--/auth";
-    const prodScheme = "checkin://auth";
+    const fragment = url.hash || "";
+    const redirectUrl = `${scheme}?token=${encodeURIComponent(token)}${fragment}`;
 
-    // Base redirect
-    const baseTarget =
-      env === "dev"
-        ? expoTunnel
-        : prodScheme;
-
-    // Preserve any hash fragments if present (Supabase will include them after verify)
-    const fragment = url.hash ? url.hash : "";
-    const redirectUrl = `${baseTarget}?token=${encodeURIComponent(token)}${fragment}`;
-
-    console.log("🔁 Redirecting to:", redirectUrl);
+    console.log("🔁 [PROD] Redirecting to:", redirectUrl);
 
     return new Response(null, {
       status: 302,
@@ -30,9 +18,9 @@ serve(async (req: Request) => {
     });
   } catch (err) {
     console.error("Redirect error:", err);
-    return new Response(
-      JSON.stringify({ error: "Internal redirect error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "Internal redirect error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 });

@@ -1,18 +1,18 @@
-/**
- * Lintnotes
- * - Purpose: Base Expo config (JS form). Specifies app metadata, deep link scheme, native identifiers, and extra env values.
- * - Exports: default Expo config object
- * - Major deps: dotenv (via 'dotenv/config')
- * - Side effects: None beyond reading envs.
- */
-/**
- * Lintnotes
- * - Purpose: Base Expo config (JS form). Specifies app metadata, deep link scheme, native identifiers, and extra env values.
- * - Exports: default Expo config object
- * - Major deps: dotenv (via 'dotenv/config')
- * - Side effects: None beyond reading envs.
- */
 import 'dotenv/config';
+import { config } from 'dotenv';
+import fs from 'fs';
+
+const appEnv = process.env.APP_ENV || process.env.NODE_ENV || 'development';
+const envFile =
+  appEnv === 'production' ? '.env.production' : '.env.development';
+
+// Load the appropriate .env file
+if (fs.existsSync(envFile)) {
+  config({ path: envFile });
+  console.log(`🔧 Loaded environment file: ${envFile}`);
+} else {
+  console.warn(`⚠️ Missing ${envFile} — using defaults.`);
+}
 
 export default {
   expo: {
@@ -70,15 +70,9 @@ export default {
     extra: {
       EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
       EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-      EXPO_PUBLIC_REDIRECT_URL:
-        process.env.EXPO_PUBLIC_REDIRECT_URL ||
-        'https://checkin.serendipitytechnology.com/auth/callback',
-      EXPO_PUBLIC_ENV: process.env.EXPO_PUBLIC_ENV || 'production',
-      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
-      supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-      eas: {
-        projectId: 'your-project-id',
-      },
+      EXPO_PUBLIC_REDIRECT_URL: process.env.EXPO_PUBLIC_REDIRECT_URL,
+      EXPO_PUBLIC_ENV: process.env.EXPO_PUBLIC_ENV,
+      EXPO_TUNNEL_URL: process.env.EXPO_TUNNEL_URL,
     },
 
     plugins: ['expo-router'],
