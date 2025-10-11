@@ -55,6 +55,7 @@ import {
 import { useSupabase } from '../../hooks/useSupabase';
 import { usePermissions } from '../../hooks/usePermissions';
 import ActionButton from '../../components/ActionButton';
+import { RequestInfoModal } from '../../components/RequestInfoModal';
 
 type CheckInStatus = 'pending' | 'checked-in';
 const segments: CheckInStatus[] = ['pending', 'checked-in'];
@@ -114,6 +115,7 @@ export default function CheckInScreen() {
     origin: 'tap' | 'swipe';
   } | null>(null);
   const [groupPrompt, setGroupPrompt] = useState<Attendee | null>(null);
+  const [requestInfoModalVisible, setRequestInfoModalVisible] = useState(false);
   const lastTapRef = useRef<{ id: string; timestamp: number } | null>(null);
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -560,8 +562,16 @@ export default function CheckInScreen() {
           </Text>
         </View>
         
-        {/* Sign In Button */}
+        {/* Floating Buttons for Logged-Out State */}
         <View style={styles.loggedOutButtonContainer}>
+          <TouchableOpacity
+            style={styles.goldButton}
+            onPress={() => setRequestInfoModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.goldButtonText}>Request Info</Text>
+          </TouchableOpacity>
+          
           <TouchableOpacity
             style={styles.goldButton}
             onPress={() => void signIn()}
@@ -570,6 +580,12 @@ export default function CheckInScreen() {
             <Text style={styles.goldButtonText}>Sign In</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Request Info Modal */}
+        <RequestInfoModal
+          visible={requestInfoModalVisible}
+          onClose={() => setRequestInfoModalVisible(false)}
+        />
       </View>
     );
   }
