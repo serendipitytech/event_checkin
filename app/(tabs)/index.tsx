@@ -551,13 +551,25 @@ export default function CheckInScreen() {
 
   if (!session) {
     return (
-      <View style={styles.authContainer}>
-        <Ionicons name="log-in-outline" size={40} color="#8e8e93" accessibilityElementsHidden />
-        <Text style={styles.authTitle}>Sign in required</Text>
-        <Text style={styles.authSubtitle}>
-          Tap below to launch the Supabase auth flow and load your events.
-        </Text>
-        <ActionButton label="Sign In" onPress={() => { void signIn(); }} />
+      <View style={styles.pageContainer}>
+        <View style={styles.loggedOutContainer}>
+          <Text style={styles.loggedOutHeading}>Event Check-In</Text>
+          <Text style={styles.loggedOutDescription}>
+            Ask your event planner to invite you to an event and you'll be able to check in attendees.{'\n\n'}
+            If you're an event planner and want to use this app, tap below to request more info.
+          </Text>
+        </View>
+        
+        {/* Sign In Button */}
+        <View style={styles.loggedOutButtonContainer}>
+          <TouchableOpacity
+            style={styles.goldButton}
+            onPress={() => void signIn()}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.goldButtonText}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -864,6 +876,56 @@ const styles = StyleSheet.create({
     color: '#1f1f1f',
     fontSize: 16,
     fontFamily: 'System'
+  },
+  pageContainer: {
+    flex: 1,
+    backgroundColor: '#f4f5f7'
+  },
+  loggedOutContainer: {
+    flex: 1,
+    padding: 24,
+    gap: 24,
+    paddingBottom: 150,
+    backgroundColor: '#f4f5f7',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  loggedOutHeading: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#1f1f1f',
+    textAlign: 'center'
+  },
+  loggedOutDescription: {
+    fontSize: 18,
+    color: '#4a4a4a',
+    lineHeight: 26,
+    textAlign: 'center'
+  },
+  loggedOutButtonContainer: {
+    position: 'absolute',
+    bottom: 24,
+    left: 24,
+    right: 24,
+    gap: 16
+  },
+  goldButton: {
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6
+  },
+  goldButtonText: {
+    color: '#1f1f1f',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center'
   },
   authContainer: {
     flex: 1,
