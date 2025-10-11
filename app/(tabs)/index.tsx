@@ -555,7 +555,7 @@ export default function CheckInScreen() {
     return (
       <View style={styles.pageContainer}>
         <View style={styles.loggedOutContainer}>
-          <Text style={styles.loggedOutHeading}>Event Check-In</Text>
+          <Text style={styles.heading}>Event Check-In</Text>
           <Text style={styles.loggedOutDescription}>
             Ask your event planner to invite you to an event and you'll be able to check in attendees.{'\n\n'}
             If you're an event planner and want to use this app, tap below to request more info.
@@ -897,20 +897,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f4f5f7'
   },
-  loggedOutContainer: {
-    flex: 1,
-    padding: 24,
-    gap: 24,
-    paddingBottom: 150,
-    backgroundColor: '#f4f5f7',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  loggedOutHeading: {
+  heading: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#1f1f1f',
-    textAlign: 'center'
+    color: '#1f1f1f'
+  },
+  loggedOutContainer: {
+    padding: 24,
+    gap: 24,
+    paddingBottom: 200,
+    backgroundColor: '#f4f5f7',
+    flexGrow: 1,
+    justifyContent: 'center'
   },
   loggedOutDescription: {
     fontSize: 18,
