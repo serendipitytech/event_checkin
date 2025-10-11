@@ -22,21 +22,17 @@ export type InviteUserData = {
  * Production: Uses HTTPS domain for deployed app
  */
 function getRedirectTo(): string {
-  // Prefer environment-provided redirect URL
-  const envRedirect = process.env.EXPO_PUBLIC_REDIRECT_URL;
-  if (!envRedirect) {
-    console.warn('Missing EXPO_PUBLIC_REDIRECT_URL; falling back to Expo Linking URL.');
-    try {
-      // Fallback to a best-effort deep link using Expo Linking
-      return Linking.createURL('/auth');
-    } catch (e) {
-      console.error('Failed to compute fallback redirect URL:', e);
-      return 'about:blank';
-    }
+  const redirectTo =
+    process.env.EXPO_PUBLIC_REDIRECT_URL ||
+    'https://efcgzxjwystresjbcezc.functions.supabase.co/redirect';
+  
+  if (!process.env.EXPO_PUBLIC_REDIRECT_URL) {
+    console.warn('⚠️ EXPO_PUBLIC_REDIRECT_URL not set, using fallback:', redirectTo);
   }
+  
   console.log('🔧 Execution Environment:', Constants.executionEnvironment);
-  console.log('🔗 Using redirectTo (env):', envRedirect);
-  return envRedirect;
+  console.log('🔗 Using redirectTo:', redirectTo);
+  return redirectTo;
 }
 
 type AccessibleEvent = {

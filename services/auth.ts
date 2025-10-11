@@ -29,11 +29,12 @@ const parseFragment = (url: string): Record<string, string> => {
 export const launchMagicLinkSignIn = async (): Promise<void> => {
   const supabase = getSupabaseClient();
 
-  const redirectTo = process.env.EXPO_PUBLIC_REDIRECT_URL;
-  if (!redirectTo) {
-    console.error('Missing EXPO_PUBLIC_REDIRECT_URL environment variable');
-    Alert.alert("Missing Redirect URL", "No redirect URL configured.");
-    return;
+  const redirectTo =
+    process.env.EXPO_PUBLIC_REDIRECT_URL ||
+    'https://efcgzxjwystresjbcezc.functions.supabase.co/redirect';
+  
+  if (!process.env.EXPO_PUBLIC_REDIRECT_URL) {
+    console.warn('⚠️ EXPO_PUBLIC_REDIRECT_URL not set, using fallback:', redirectTo);
   }
 
   console.log("🔗 Using redirectTo:", redirectTo);
