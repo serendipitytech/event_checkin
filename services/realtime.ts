@@ -13,6 +13,7 @@ export type RealtimeSubscriptionOptions = {
   eventId: string;
   onError?: (error: Error) => void;
   onStatusChange?: (status: 'SUBSCRIBED' | 'CHANNEL_ERROR' | 'TIMED_OUT' | 'CLOSED') => void;
+  onReconnected?: () => void;
   reconnectAttempts?: number;
   reconnectDelay?: number;
 };
@@ -58,8 +59,17 @@ class RealtimeManager {
       .subscribe((status) => {
         console.log(`Real-time subscription status for ${channelName}:`, status);
         
+        const previousStatus = this.connectionStatus.get(channelName);
+        const wasDisconnected = previousStatus && !previousStatus.isConnected;
+        
         this.updateConnectionStatus(channelName, status);
         onStatusChange?.(status);
+
+        // Trigger onReconnected callback when connection is restored
+        if (status === 'SUBSCRIBED' && wasDisconnected) {
+          console.log(`✅ Reconnected to ${channelName}, triggering data refresh`);
+          options.onReconnected?.();
+        }
 
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           this.handleReconnection(channelName, options, onChange);

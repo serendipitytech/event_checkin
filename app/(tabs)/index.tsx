@@ -200,10 +200,18 @@ export default function CheckInScreen() {
       await loadAttendees(true);
       if (!isMounted) return;
 
-      unsubscribe = subscribeAttendees(selectedEvent.eventId, (change) => {
-        if (!isMounted) return;
-        setAttendees((prev) => applyAttendeeChange(prev, change));
-      });
+      unsubscribe = subscribeAttendees(
+        selectedEvent.eventId,
+        (change) => {
+          if (!isMounted) return;
+          setAttendees((prev) => applyAttendeeChange(prev, change));
+        },
+        () => {
+          // Auto-refresh attendees when realtime reconnects
+          console.log('🔄 Realtime reconnected, auto-refreshing attendees');
+          void loadAttendees(false, { silent: true });
+        }
+      );
     };
 
     void initialise();

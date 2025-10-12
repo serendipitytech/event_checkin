@@ -90,7 +90,8 @@ export const fetchAttendees = async (eventId: string): Promise<Attendee[]> => {
 
 export const subscribeAttendees = (
   eventId: string,
-  onChange: (change: AttendeeChange) => void
+  onChange: (change: AttendeeChange) => void,
+  onReconnected?: () => void
 ) => {
   return subscribeToAttendeesRealtime(
     {
@@ -100,6 +101,10 @@ export const subscribeAttendees = (
       },
       onStatusChange: (status) => {
         console.log('Real-time attendee subscription status:', status);
+      },
+      onReconnected: () => {
+        console.log('🔄 Realtime reconnected, refreshing attendee data');
+        onReconnected?.();
       },
       reconnectAttempts: 5,
       reconnectDelay: 2000,
