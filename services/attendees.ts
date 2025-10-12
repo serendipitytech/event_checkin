@@ -8,9 +8,14 @@
  * - Side effects: Opens realtime subscription when subscribeAttendees is called; otherwise pure RPC/queries.
  */
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Network from 'expo-network';
 
 import { getSupabaseClient } from './supabase';
 import { subscribeToAttendees as subscribeToAttendeesRealtime } from './realtime';
+
+// Storage key prefix for cached attendees
+const ATTENDEES_CACHE_PREFIX = '@checkin_attendees_';
 
 export type Attendee = {
   id: string;
@@ -70,8 +75,58 @@ const mapRecordToAttendee = (record: AttendeeRecord | null): Attendee | null => 
   };
 };
 
-export const fetchAttendees = async (eventId: string): Promise<Attendee[]> => {
+/**
+ * Save attendees to AsyncStorage cache
+ */
+const saveAttendeesToCache = async (eventId: string, attendees: Attendee[]): Promise<void> => {
+  try {
+    const cacheKey = `${ATTENDEES_CACHE_PREFIX}${eventId}`;
+    await AsyncStorage.setItem(cacheKey, JSON.stringify(attendees));
+    console.log('💾 Cached attendees for event:', eventId, `(${attendees.length} attendees)`);
+  } catch (error) {
+    console.error('Failed to cache attendees:', error);
+    // Don't throw - caching is optional
+  }
+};
+
+/**
+ * Load attendees from AsyncStorage cache
+ */
+const loadAttendeesFromCache = async (eventId: string): Promise<Attendee[] | null> => {
+  try {
+    const cacheKey = `${ATTENDEES_CACHE_PREFIX}${eventId}`;
+    const cached = await AsyncStorage.getItem(cacheKey);
+    if (cached) {
+      const attendees = JSON.parse(cached) as Attendee[];
+      console.log('📦 Restored attendees from cache for event:', eventId, `(${attendees.length} attendees)`);
+      return attendees;
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to load attendees from cache:', error);
+    return null;
+  }
+};
+
+export const fetchAttendees = async (eventId: string, useCache: boolean = true): Promise<Attendee[]> => {
   const supabase = getSupabaseClient();
+  
+  // Check network connectivity
+  const networkState = await Network.getNetworkStateAsync();
+  const isOnline = networkState.isConnected && networkState.isInternetReachable;
+
+  // If offline and cache is allowed, try to load from cache
+  if (!isOnline && useCache) {
+    console.log('📴 Offline detected, loading from cache');
+    const cached = await loadAttendeesFromCache(eventId);
+    if (cached) {
+      return cached;
+    }
+    console.warn('⚠️ No cache available for offline use');
+    throw new Error('Unable to load attendees while offline');
+  }
+
+  // Online - fetch from Supabase
   const { data, error } = await supabase
     .from('attendees')
     .select('*')
@@ -80,12 +135,38 @@ export const fetchAttendees = async (eventId: string): Promise<Attendee[]> => {
 
   if (error) {
     console.error('fetchAttendees failed:', JSON.stringify(error, null, 2));
+    
+    // If fetch fails and we have cache, use it as fallback
+    if (useCache) {
+      console.log('⚠️ Fetch failed, attempting to load from cache');
+      const cached = await loadAttendeesFromCache(eventId);
+      if (cached) {
+        console.log('✅ Using cached data as fallback');
+        return cached;
+      }
+    }
+    
     throw error;
   }
 
-  return (data ?? [])
+  const attendees = (data ?? [])
     .map((record) => mapRecordToAttendee(record as AttendeeRecord))
     .filter((attendee): attendee is Attendee => attendee !== null);
+
+  // Save to cache for offline use
+  if (useCache) {
+    await saveAttendeesToCache(eventId, attendees);
+  }
+
+  return attendees;
+};
+
+/**
+ * Sync attendees cache after successful update
+ */
+export const syncAttendeesCache = async (eventId: string, attendees: Attendee[]): Promise<void> => {
+  await saveAttendeesToCache(eventId, attendees);
+  console.log('🔁 Synced cached attendees after update');
 };
 
 export const subscribeAttendees = (

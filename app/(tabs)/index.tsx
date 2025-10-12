@@ -44,6 +44,7 @@ import {
   AttendeeChange,
   fetchAttendees,
   subscribeAttendees,
+  syncAttendeesCache,
   toggleCheckin
 } from '../../services/attendees';
 import {
@@ -204,7 +205,12 @@ export default function CheckInScreen() {
         selectedEvent.eventId,
         (change) => {
           if (!isMounted) return;
-          setAttendees((prev) => applyAttendeeChange(prev, change));
+          setAttendees((prev) => {
+            const updated = applyAttendeeChange(prev, change);
+            // Sync cache after realtime update
+            void syncAttendeesCache(selectedEvent.eventId, updated);
+            return updated;
+          });
         },
         () => {
           // Auto-refresh attendees when realtime reconnects
