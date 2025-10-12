@@ -8,10 +8,15 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { getSupabaseClient } from '../services/supabase';
 import { launchMagicLinkSignIn, initializeDeepLinkHandling } from '../services/auth';
 import { fetchAccessibleEvents, type EventSummary } from '../services/events';
+
+// Storage keys for persistent session
+const SESSION_STORAGE_KEY = '@checkin_session';
+const SELECTED_EVENT_STORAGE_KEY = '@checkin_selected_event';
 
 export type SupabaseContextValue = {
   supabase: SupabaseClient;
@@ -37,6 +42,33 @@ export const SupabaseProvider = ({ children }: { children: ReactNode }) => {
     let mounted = true;
 
     const initialiseAuth = async () => {
+      try {
+        // First, try to restore session from AsyncStorage
+        const storedSession = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
+        if (storedSession && mounted) {
+          const parsedSession = JSON.parse(storedSession) as Session;
+          console.log('📦 Restored session from storage for:', parsedSession.user?.email);
+          
+          // Verify the session is still valid with Supabase
+          const { data, error } = await supabase.auth.setSession({
+            access_token: parsedSession.access_token,
+            refresh_token: parsedSession.refresh_token,
+          });
+          
+          if (!error && data.session && mounted) {
+            setSession(data.session);
+            console.log('✅ Session validated and restored');
+          } else if (mounted) {
+            // Stored session is invalid, clear it
+            await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+            console.log('🗑️ Cleared invalid stored session');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to restore session from storage:', error);
+      }
+
+      // Always check current session from Supabase
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
       setSession(data.session ?? null);
@@ -45,18 +77,42 @@ export const SupabaseProvider = ({ children }: { children: ReactNode }) => {
 
     initialiseAuth();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!mounted) return;
       setSession(newSession ?? null);
       
-      // Handle successful sign in
+      // Handle successful sign in - persist session to AsyncStorage
       if (event === 'SIGNED_IN' && newSession) {
-        console.log('User signed in successfully');
+        console.log('✅ User signed in:', newSession.user?.email);
+        try {
+          await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
+          console.log('💾 Session persisted to storage');
+        } catch (error) {
+          console.error('Failed to persist session:', error);
+        }
       }
       
-      // Handle sign out
+      // Handle token refresh - update stored session
+      if (event === 'TOKEN_REFRESHED' && newSession) {
+        console.log('🔄 Token refreshed');
+        try {
+          await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
+          console.log('💾 Refreshed session persisted to storage');
+        } catch (error) {
+          console.error('Failed to persist refreshed session:', error);
+        }
+      }
+      
+      // Handle sign out - clear stored session
       if (event === 'SIGNED_OUT') {
-        console.log('User signed out');
+        console.log('👋 User signed out');
+        try {
+          await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+          await AsyncStorage.removeItem(SELECTED_EVENT_STORAGE_KEY);
+          console.log('🗑️ Cleared stored session and event selection');
+        } catch (error) {
+          console.error('Failed to clear stored session:', error);
+        }
       }
     });
 
@@ -100,8 +156,19 @@ export const SupabaseProvider = ({ children }: { children: ReactNode }) => {
         const accessible = await fetchAccessibleEvents();
         if (ignore) return;
         setEvents(accessible);
+        
+        // Try to restore previously selected event from storage
+        const storedEventId = await AsyncStorage.getItem(SELECTED_EVENT_STORAGE_KEY);
+        
         if (accessible.length > 0) {
-          setSelectedEventId((current) => current ?? accessible[0].eventId);
+          // If we have a stored event and it's still accessible, use it
+          if (storedEventId && accessible.some(e => e.eventId === storedEventId)) {
+            console.log('📦 Restored selected event from storage:', storedEventId);
+            setSelectedEventId(storedEventId);
+          } else {
+            // Otherwise, select the first event
+            setSelectedEventId((current) => current ?? accessible[0].eventId);
+          }
         } else {
           setSelectedEventId(null);
         }
@@ -124,6 +191,15 @@ export const SupabaseProvider = ({ children }: { children: ReactNode }) => {
       ignore = true;
     };
   }, [session, supabase]);
+
+  // Persist selected event to AsyncStorage whenever it changes
+  useEffect(() => {
+    if (selectedEventId) {
+      AsyncStorage.setItem(SELECTED_EVENT_STORAGE_KEY, selectedEventId)
+        .then(() => console.log('💾 Selected event persisted:', selectedEventId))
+        .catch((error) => console.error('Failed to persist selected event:', error));
+    }
+  }, [selectedEventId]);
 
   const selectedEvent = useMemo(() => {
     if (!selectedEventId) return null;
