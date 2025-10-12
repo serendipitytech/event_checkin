@@ -32,7 +32,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.serendipity.checkin',
-      buildNumber: '0',
+      buildNumber: '100',
       infoPlist: {
         CFBundleURLTypes: [
           {
