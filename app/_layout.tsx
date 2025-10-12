@@ -25,6 +25,7 @@ export function EnvironmentBanner() {
   const env = process.env.EXPO_PUBLIC_ENV;
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const redirectUrl = process.env.EXPO_PUBLIC_REDIRECT_URL;
+  const hideBanner = true;
 
   const [visible, setVisible] = useState(true);
 
@@ -97,7 +98,9 @@ export default function RootLayout() {
     // Place global side effects here such as warm-up fetches or font loading.
   }, []);
 
-  const hideBanner = (process.env.EXPO_PUBLIC_ENV || '').toLowerCase() === 'production';
+  const hideBanner =
+  (process.env.EXPO_PUBLIC_ENV || '').toLowerCase() === 'production' ||
+  process.env.EXPO_PUBLIC_HIDE_BANNER === 'true';
 
   return (
     <>
