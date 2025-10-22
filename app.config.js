@@ -17,7 +17,7 @@ if (fs.existsSync(envFile)) {
 export default {
   expo: {
     name: 'CheckIn by Serendipity',
-    slug: 'checkin',
+    slug: 'expo-checkin',
     version: '1.1.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -31,8 +31,8 @@ export default {
 
     ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.serendipity.checkin',
-      buildNumber: '100',
+      bundleIdentifier: 'com.serendipitytech.checkin',
+      buildNumber: '101',
       infoPlist: {
         CFBundleURLTypes: [
           {
@@ -48,7 +48,7 @@ export default {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffffff',
       },
-      package: 'com.serendipity.checkin',
+      package: 'com.serendipitytech.checkin',
       intentFilters: [
         {
           action: 'VIEW',
@@ -73,6 +73,9 @@ export default {
       EXPO_PUBLIC_REDIRECT_URL: process.env.EXPO_PUBLIC_REDIRECT_URL,
       EXPO_PUBLIC_ENV: process.env.EXPO_PUBLIC_ENV,
       EXPO_TUNNEL_URL: process.env.EXPO_TUNNEL_URL,
+      eas: {
+        projectId: '4ec28d73-3633-44be-82d4-fef18e87a82e',
+      },
     },
 
     plugins: ['expo-router'],
