@@ -57,6 +57,8 @@ import { useSupabase } from '../../hooks/useSupabase';
 import { usePermissions } from '../../hooks/usePermissions';
 import ActionButton from '../../components/ActionButton';
 import { RequestInfoModal } from '../../components/RequestInfoModal';
+import SafeAsyncStorage from '../../utils/safeAsyncStorage';
+import { validateCheckerLink } from '../../services/checkerLinks';
 
 type CheckInStatus = 'pending' | 'checked-in';
 const segments: CheckInStatus[] = ['pending', 'checked-in'];
@@ -117,8 +119,39 @@ export default function CheckInScreen() {
   } | null>(null);
   const [groupPrompt, setGroupPrompt] = useState<Attendee | null>(null);
   const [requestInfoModalVisible, setRequestInfoModalVisible] = useState(false);
+  const [checkerMode, setCheckerMode] = useState(false);
+  const [checkerEventId, setCheckerEventId] = useState<string | null>(null);
   const lastTapRef = useRef<{ id: string; timestamp: number } | null>(null);
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check for checker token on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const checkerToken = await SafeAsyncStorage.getItem('checker_token');
+        const eventId = await SafeAsyncStorage.getItem('checker_event_id');
+        
+        if (checkerToken && eventId) {
+          // Validate the checker token
+          const result = await validateCheckerLink(checkerToken);
+          if (result && result.event_id === eventId) {
+            setCheckerMode(true);
+            setCheckerEventId(eventId);
+            // Auto-select this event if not already authenticated
+            if (!session) {
+              setSelectedEventId(eventId);
+            }
+          } else {
+            // Invalid or expired token - clear it
+            await SafeAsyncStorage.removeItem('checker_token');
+            await SafeAsyncStorage.removeItem('checker_event_id');
+          }
+        }
+      } catch (err) {
+        console.error('Failed to validate checker token:', err);
+      }
+    })();
+  }, []);
 
   const totals = useMemo(() => {
     const pending = attendees.filter((item) => !item.checkedIn).length;
@@ -154,14 +187,16 @@ export default function CheckInScreen() {
         }
       };
 
-      if (!session) {
+      // Allow loading if either session exists OR checker mode is active
+      if (!session && !checkerMode) {
         stopIndicators();
         setAttendees([]);
         setError(null);
         return;
       }
 
-      const eventId = selectedEvent?.eventId;
+      // Use checker event ID if in checker mode without session
+      const eventId = selectedEvent?.eventId || (checkerMode ? checkerEventId : null);
       if (!eventId) {
         stopIndicators();
         setAttendees([]);
@@ -185,7 +220,7 @@ export default function CheckInScreen() {
         stopIndicators();
       }
     },
-    [selectedEvent?.eventId, session]
+    [selectedEvent?.eventId, session, checkerMode, checkerEventId]
   );
 
   useEffect(() => {
@@ -193,7 +228,10 @@ export default function CheckInScreen() {
     let unsubscribe: (() => void) | undefined;
 
     const initialise = async () => {
-      if (!session || !selectedEvent?.eventId) {
+      // Determine the event ID to use
+      const eventId = selectedEvent?.eventId || (checkerMode ? checkerEventId : null);
+      
+      if ((!session && !checkerMode) || !eventId) {
         await loadAttendees(false);
         return;
       }
@@ -201,23 +239,26 @@ export default function CheckInScreen() {
       await loadAttendees(true);
       if (!isMounted) return;
 
-      unsubscribe = subscribeAttendees(
-        selectedEvent.eventId,
-        (change) => {
-          if (!isMounted) return;
-          setAttendees((prev) => {
-            const updated = applyAttendeeChange(prev, change);
-            // Sync cache after realtime update
-            void syncAttendeesCache(selectedEvent.eventId, updated);
-            return updated;
-          });
-        },
-        () => {
-          // Auto-refresh attendees when realtime reconnects
-          console.log('🔄 Realtime reconnected, auto-refreshing attendees');
-          void loadAttendees(false, { silent: true });
-        }
-      );
+      // Only subscribe to realtime if we have a session (not in checker mode)
+      if (session) {
+        unsubscribe = subscribeAttendees(
+          eventId,
+          (change) => {
+            if (!isMounted) return;
+            setAttendees((prev) => {
+              const updated = applyAttendeeChange(prev, change);
+              // Sync cache after realtime update
+              void syncAttendeesCache(eventId, updated);
+              return updated;
+            });
+          },
+          () => {
+            // Auto-refresh attendees when realtime reconnects
+            console.log('🔄 Realtime reconnected, auto-refreshing attendees');
+            void loadAttendees(false, { silent: true });
+          }
+        );
+      }
     };
 
     void initialise();
@@ -226,7 +267,7 @@ export default function CheckInScreen() {
       isMounted = false;
       unsubscribe?.();
     };
-  }, [loadAttendees, selectedEvent?.eventId, session]);
+  }, [loadAttendees, selectedEvent?.eventId, session, checkerMode, checkerEventId]);
 
   useEffect(() => {
     const remove = addRefreshListener((options) => {
@@ -332,7 +373,7 @@ export default function CheckInScreen() {
 
   const handleConfirm = useCallback(
     async (attendee: Attendee, makeCheckedIn: boolean) => {
-      if (!canToggleCheckins) {
+      if (!canToggleCheckins && !checkerMode) {
         Alert.alert('Permission Denied', 'You do not have permission to check in attendees.');
         return;
       }
@@ -357,12 +398,12 @@ export default function CheckInScreen() {
         Alert.alert('Update failed', 'Please try again.');
       }
     },
-    [canToggleCheckins]
+    [canToggleCheckins, checkerMode]
   );
 
   const handleGroupAction = useCallback(
     async (attendee: Attendee, scope: 'group' | 'table') => {
-      if (!canToggleCheckins) {
+      if (!canToggleCheckins && !checkerMode) {
         Alert.alert('Permission Denied', 'You do not have permission to check in attendees.');
         return;
       }
@@ -399,7 +440,7 @@ export default function CheckInScreen() {
         Alert.alert('Group check-in failed', 'Please try again.');
       }
     },
-    [attendees, loadAttendees, canToggleCheckins]
+    [attendees, loadAttendees, canToggleCheckins, checkerMode]
   );
 
   const toggleSort = useCallback(
@@ -556,7 +597,7 @@ export default function CheckInScreen() {
     </View>
   ), [activeStatus, error, searchTerm, sortsVisible, sortKey, sortOrder, toggleSort]);
 
-  if (supabaseLoading) {
+  if (supabaseLoading && !checkerMode) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#1f1f1f" />
@@ -565,7 +606,7 @@ export default function CheckInScreen() {
     );
   }
 
-  if (!session) {
+  if (!session && !checkerMode) {
     return (
       <View style={styles.pageContainer}>
         <View style={styles.loggedOutContainer}>
@@ -604,7 +645,7 @@ export default function CheckInScreen() {
     );
   }
 
-  if (!selectedEvent) {
+  if (!selectedEvent && !checkerMode) {
     // No events available
     if (events.length === 0) {
       return (
@@ -662,7 +703,7 @@ export default function CheckInScreen() {
     );
   }
 
-  if (!canViewAttendees) {
+  if (!canViewAttendees && !checkerMode) {
     return (
       <View style={styles.authContainer}>
         <Ionicons name="lock-closed-outline" size={40} color="#8e8e93" accessibilityElementsHidden />

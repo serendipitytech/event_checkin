@@ -33,6 +33,7 @@ import { CreateEventModal } from '../../components/CreateEventModal';
 import { InviteUserModal } from '../../components/InviteUserModal';
 import { EventSelectorModal } from '../../components/EventSelectorModal';
 import { RequestInfoModal } from '../../components/RequestInfoModal';
+import { ShareCheckerLink } from '../../components/ShareCheckerLink';
 import type { ImportResult } from '../../services/rosterImport';
 
 const AUTO_REFRESH_OPTIONS = [
@@ -298,6 +299,13 @@ export default function AdminScreen() {
             <Text style={styles.eventInfoLabel}>Your Role</Text>
             <Text style={styles.eventInfoValue}>{describeRole()}</Text>
           </View>
+
+          {/* Checker Link Generation - For admins and managers */}
+          {(canManageRoster || canInviteUsers) && selectedEvent && (
+            <View style={styles.checkerLinkContainer}>
+              <ShareCheckerLink eventId={selectedEvent.eventId} />
+            </View>
+          )}
 
           {/* Invite User Button - Restored for functionality */}
           {canInviteUsers && selectedEvent && (
@@ -680,6 +688,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1f1f1f'
+  },
+  checkerLinkContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e1e5e9'
   },
   inviteButtonContainer: {
     marginTop: 16,

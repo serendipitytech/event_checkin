@@ -7,6 +7,10 @@
     "jsx": "react-jsx",
     "types": ["expo-router"],
     "noImplicitAny": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
   }
 }
