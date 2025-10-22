@@ -29,11 +29,22 @@ const parseFragment = (url: string): Record<string, string> => {
 export const launchMagicLinkSignIn = async (): Promise<void> => {
   const supabase = getSupabaseClient();
 
-  const redirectTo =
-    process.env.EXPO_PUBLIC_REDIRECT_URL ||
-    'https://efcgzxjwystresjbcezc.functions.supabase.co/redirect';
-  
-  if (!process.env.EXPO_PUBLIC_REDIRECT_URL) {
+  // Determine the correct redirect URL based on environment
+  let redirectTo = process.env.EXPO_PUBLIC_REDIRECT_URL || 
+                   'https://efcgzxjwystresjbcezc.functions.supabase.co/redirect';
+
+  // Handle local dev - check if we're on localhost
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    redirectTo = 'http://localhost:19006';
+    console.log('🏠 Local dev detected, using localhost redirect');
+  } 
+  // Handle Vercel preview deployments
+  else if (process.env.VERCEL_ENV === 'preview' && process.env.EXPO_PUBLIC_PREVIEW_REDIRECT_URL) {
+    redirectTo = process.env.EXPO_PUBLIC_PREVIEW_REDIRECT_URL;
+    console.log('🔍 Vercel preview detected, using preview redirect');
+  }
+  // Production or other environments use the configured URL
+  else if (!process.env.EXPO_PUBLIC_REDIRECT_URL) {
     console.warn('⚠️ EXPO_PUBLIC_REDIRECT_URL not set, using fallback:', redirectTo);
   }
 

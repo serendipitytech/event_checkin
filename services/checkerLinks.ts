@@ -1,11 +1,11 @@
 import { supabase } from './supabase';
-import { nanoid } from 'nanoid';
+import { generateCode } from '@/utils/generateCode';
 
 /**
  * Create a new checker link for a given event
  */
 export async function generateCheckerLink(eventId: string) {
-  const code = nanoid(6).toUpperCase();
+  const code = generateCode(6);
   const { data, error } = await supabase
     .from('checker_links')
     .insert([{ event_id: eventId, code }])
