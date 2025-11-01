@@ -33,6 +33,7 @@ import { CreateEventModal } from '../../components/CreateEventModal';
 import { InviteUserModal } from '../../components/InviteUserModal';
 import { EventSelectorModal } from '../../components/EventSelectorModal';
 import { RequestInfoModal } from '../../components/RequestInfoModal';
+import { CodeRedeemModal } from '../../components/CodeRedeemModal';
 import type { ImportResult } from '../../services/rosterImport';
 import { deleteLocalSession, deleteMyAccount } from '../../services/account';
 
@@ -73,6 +74,7 @@ export default function AdminScreen() {
   const [inviteUserModalVisible, setInviteUserModalVisible] = useState(false);
   const [eventSelectorModalVisible, setEventSelectorModalVisible] = useState(false);
   const [requestInfoModalVisible, setRequestInfoModalVisible] = useState(false);
+  const [redeemModalVisible, setRedeemModalVisible] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
@@ -272,7 +274,15 @@ export default function AdminScreen() {
           >
             <Text style={styles.goldButtonText}>Request Info</Text>
           </TouchableOpacity>
-          
+
+          <TouchableOpacity
+            style={styles.goldButton}
+            onPress={() => setRedeemModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.goldButtonText}>Enter Access Code</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.goldButton}
             onPress={() => void signIn()}
@@ -286,6 +296,16 @@ export default function AdminScreen() {
         <RequestInfoModal
           visible={requestInfoModalVisible}
           onClose={() => setRequestInfoModalVisible(false)}
+        />
+
+        {/* Redeem Code Modal */}
+        <CodeRedeemModal
+          visible={redeemModalVisible}
+          onClose={() => setRedeemModalVisible(false)}
+          onSuccess={({ eventId }) => {
+            setSelectedEventId(eventId);
+            Alert.alert('Joined Event', 'Access granted. You can now check in attendees.');
+          }}
         />
       </View>
     );
