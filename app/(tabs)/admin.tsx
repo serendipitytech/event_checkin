@@ -52,6 +52,7 @@ export default function AdminScreen() {
     events,
     selectedEvent,
     setSelectedEventId,
+    refreshEvents,
     loading: supabaseLoading,
     signIn,
     signOut
@@ -304,7 +305,10 @@ export default function AdminScreen() {
           onClose={() => setRedeemModalVisible(false)}
           onSuccess={({ eventId }) => {
             setSelectedEventId(eventId);
-            Alert.alert('Joined Event', 'Access granted. You can now check in attendees.');
+            void (async () => {
+              await refreshEvents();
+              Alert.alert('Joined Event', 'Access granted. You can now check in attendees.');
+            })();
           }}
         />
       </View>
