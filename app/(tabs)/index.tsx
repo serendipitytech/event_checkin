@@ -606,7 +606,7 @@ export default function CheckInScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Request Info Modal */
+        {/* Request Info Modal */}
         <RequestInfoModal
           visible={requestInfoModalVisible}
           onClose={() => setRequestInfoModalVisible(false)}
