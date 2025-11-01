@@ -58,7 +58,7 @@ export const CodeRedeemModal: React.FC<Props> = ({ visible, onClose, onSuccess }
           />
           <View style={styles.actions}>
             <TouchableOpacity style={[styles.button, styles.cancel]} onPress={onClose} disabled={loading}>
-              <Text style={styles.buttonText}>Cancel</Text>
+              <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.button, styles.primary]} onPress={handleRedeem} disabled={loading}>
               {loading ? <ActivityIndicator color="#fff" /> : (
@@ -83,10 +83,10 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 12, marginBottom: 12 },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
   button: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8 },
-  cancel: { backgroundColor: '#e5e7eb' },
+  cancel: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#d1d5db' },
   primary: { backgroundColor: '#111827' },
   buttonText: { color: '#fff', fontWeight: '600' },
+  cancelText: { color: '#111827', fontWeight: '600' },
 });
 
 export default CodeRedeemModal;
-
