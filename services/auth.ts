@@ -121,18 +121,24 @@ export const handleAuthCallback = async (url: string): Promise<void> => {
 
   if (access_token && refresh_token) {
     console.log("✅ Tokens detected, setting session...");
-    const { data, error } = await supabase.auth.setSession({
-      access_token,
-      refresh_token,
-    });
-    if (error) throw error;
+    try {
+      const { data, error } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+      if (error) throw error;
 
-    if (data?.session) {
-      console.log("✅ Signed in user:", data.user?.email);
-      console.log("🔑 Supabase session restored from storage or token exchange.");
-      Alert.alert("Welcome!", "You're now signed in.");
-    } else {
-      throw new Error("No session returned from Supabase.");
+      if (data?.session) {
+        console.log("✅ Signed in user:", data.user?.email);
+        console.log("🔑 Supabase session restored from storage or token exchange.");
+        Alert.alert("Welcome!", "You're now signed in.");
+      } else {
+        console.warn("No session returned from Supabase after setSession.");
+      }
+    } catch (err) {
+      // Gracefully handle common errors like unknown user/token mismatch
+      console.warn("Auth callback processing failed:", err);
+      Alert.alert("Sign-in Failed", "This magic link is invalid or expired.");
     }
   } else {
     // Malformed token case: we had a fragment but were missing one of the tokens

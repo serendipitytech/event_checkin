@@ -25,6 +25,7 @@ export type SupabaseContextValue = {
   events: EventSummary[];
   selectedEvent: EventSummary | null;
   setSelectedEventId: (eventId: string | null) => void;
+  refreshEvents: () => Promise<void>;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -213,6 +214,22 @@ export const SupabaseProvider = ({ children }: { children: ReactNode }) => {
     events,
     selectedEvent,
     setSelectedEventId,
+    refreshEvents: async () => {
+      try {
+        const accessible = await fetchAccessibleEvents();
+        setEvents(accessible);
+        // Preserve current selection if still valid; otherwise pick the first
+        if (selectedEventId && accessible.some(e => e.eventId === selectedEventId)) {
+          // keep
+        } else if (accessible.length > 0) {
+          setSelectedEventId(accessible[0].eventId);
+        } else {
+          setSelectedEventId(null);
+        }
+      } catch (err) {
+        console.warn('refreshEvents failed:', err);
+      }
+    },
     signIn: async () => {
       await launchMagicLinkSignIn();
     },
@@ -221,7 +238,7 @@ export const SupabaseProvider = ({ children }: { children: ReactNode }) => {
       setEvents([]);
       setSelectedEventId(null);
     }
-  }), [events, loading, selectedEvent, session, supabase]);
+  }), [events, loading, selectedEvent, selectedEventId, session, supabase]);
 
   return <SupabaseContext.Provider value={value}>{children}</SupabaseContext.Provider>;
 };

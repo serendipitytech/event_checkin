@@ -9,6 +9,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { getSupabaseClient } from './supabase';
+import { buildGoogleSheetCsvUrl } from './sheets';
 import type { Attendee } from './attendees';
 
 export type ImportResult = {
@@ -189,8 +190,8 @@ export const importAttendeesFromGoogleSheet = async (
   };
 
   try {
-    // Convert Google Sheets URL to CSV export URL
-    const csvUrl = sheetUrl.replace(/\/edit.*$/, '/export?format=csv&gid=0');
+    // Normalize Google Sheets URL to CSV export URL (handles multiple formats)
+    const csvUrl = buildGoogleSheetCsvUrl(sheetUrl);
     
     // Fetch CSV content
     const response = await fetch(csvUrl);

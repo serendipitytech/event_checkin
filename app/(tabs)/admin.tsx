@@ -10,7 +10,7 @@
  * - Side effects: Triggers data mutations via services; updates shared auto-refresh interval; opens modals.
  */
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 
 import ActionButton from '../../components/ActionButton';
 import {
@@ -33,7 +33,9 @@ import { CreateEventModal } from '../../components/CreateEventModal';
 import { InviteUserModal } from '../../components/InviteUserModal';
 import { EventSelectorModal } from '../../components/EventSelectorModal';
 import { RequestInfoModal } from '../../components/RequestInfoModal';
+import { CodeRedeemModal } from '../../components/CodeRedeemModal';
 import type { ImportResult } from '../../services/rosterImport';
+import { deleteLocalSession, deleteMyAccount } from '../../services/account';
 
 const AUTO_REFRESH_OPTIONS = [
   { label: 'Off', value: 0 },
@@ -50,6 +52,7 @@ export default function AdminScreen() {
     events,
     selectedEvent,
     setSelectedEventId,
+    refreshEvents,
     loading: supabaseLoading,
     signIn,
     signOut
@@ -72,6 +75,8 @@ export default function AdminScreen() {
   const [inviteUserModalVisible, setInviteUserModalVisible] = useState(false);
   const [eventSelectorModalVisible, setEventSelectorModalVisible] = useState(false);
   const [requestInfoModalVisible, setRequestInfoModalVisible] = useState(false);
+  const [redeemModalVisible, setRedeemModalVisible] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     const remove = addAutoRefreshListener((interval) => {
@@ -198,6 +203,51 @@ export default function AdminScreen() {
     setEventSelectorModalVisible(true);
   };
 
+  const handleDeleteAccount = () => {
+    if (!session) {
+      Alert.alert('Not signed in', 'You must be signed in to delete your account.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and remove your event memberships. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingAccount(true);
+            try {
+              const res = await deleteMyAccount();
+              if (!res.success) {
+                Alert.alert(
+                  'Deletion Failed',
+                  res.message || 'Please try again later or use the web portal.',
+                  [
+                    {
+                      text: 'Open Web Portal',
+                      onPress: () => {
+                        void Linking.openURL('https://your-domain.com/account/delete');
+                      },
+                    },
+                    { text: 'OK' },
+                  ]
+                );
+                return;
+              }
+              Alert.alert('Account Deleted', 'Your account has been deleted.');
+              await deleteLocalSession();
+            } finally {
+              setDeletingAccount(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleEventSelection = (eventId: string) => {
     setSelectedEventId(eventId);
     // The modal will close automatically after selection
@@ -225,7 +275,15 @@ export default function AdminScreen() {
           >
             <Text style={styles.goldButtonText}>Request Info</Text>
           </TouchableOpacity>
-          
+
+          <TouchableOpacity
+            style={styles.goldButton}
+            onPress={() => setRedeemModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.goldButtonText}>Enter Access Code</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.goldButton}
             onPress={() => void signIn()}
@@ -239,6 +297,19 @@ export default function AdminScreen() {
         <RequestInfoModal
           visible={requestInfoModalVisible}
           onClose={() => setRequestInfoModalVisible(false)}
+        />
+
+        {/* Redeem Code Modal */}
+        <CodeRedeemModal
+          visible={redeemModalVisible}
+          onClose={() => setRedeemModalVisible(false)}
+          onSuccess={({ eventId }) => {
+            setSelectedEventId(eventId);
+            void (async () => {
+              await refreshEvents();
+              Alert.alert('Joined Event', 'Access granted. You can now check in attendees.');
+            })();
+          }}
         />
       </View>
     );
@@ -488,6 +559,22 @@ export default function AdminScreen() {
           </>
         )}
 
+        {/* Account & Privacy */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Account & Privacy</Text>
+          <Text style={styles.cardSubtitle}>
+            Delete your account and remove event memberships. This cannot be undone.
+          </Text>
+          <View style={styles.actions}>
+            <ActionButton
+              label={deletingAccount ? 'Deleting…' : 'Delete My Account'}
+              variant="danger"
+              onPress={handleDeleteAccount}
+              disabled={deletingAccount}
+            />
+          </View>
+        </View>
+
         <RosterImportModal
           visible={importModalVisible}
           eventId={selectedEvent?.eventId || ''}
@@ -541,7 +628,11 @@ export default function AdminScreen() {
           }}
           activeOpacity={0.8}
         >
-          <Text style={styles.floatingSignOutButtonText}>Sign Out</Text>
+          {deletingAccount ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.floatingSignOutButtonText}>Sign Out</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>

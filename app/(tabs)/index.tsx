@@ -57,6 +57,7 @@ import { useSupabase } from '../../hooks/useSupabase';
 import { usePermissions } from '../../hooks/usePermissions';
 import ActionButton from '../../components/ActionButton';
 import { RequestInfoModal } from '../../components/RequestInfoModal';
+import { CodeRedeemModal } from '../../components/CodeRedeemModal';
 
 type CheckInStatus = 'pending' | 'checked-in';
 const segments: CheckInStatus[] = ['pending', 'checked-in'];
@@ -117,6 +118,7 @@ export default function CheckInScreen() {
   } | null>(null);
   const [groupPrompt, setGroupPrompt] = useState<Attendee | null>(null);
   const [requestInfoModalVisible, setRequestInfoModalVisible] = useState(false);
+  const [redeemModalVisible, setRedeemModalVisible] = useState(false);
   const lastTapRef = useRef<{ id: string; timestamp: number } | null>(null);
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -588,6 +590,14 @@ export default function CheckInScreen() {
           
           <TouchableOpacity
             style={styles.goldButton}
+            onPress={() => setRedeemModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.goldButtonText}>Enter Access Code</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.goldButton}
             onPress={() => void signIn()}
             activeOpacity={0.8}
           >
@@ -599,6 +609,15 @@ export default function CheckInScreen() {
         <RequestInfoModal
           visible={requestInfoModalVisible}
           onClose={() => setRequestInfoModalVisible(false)}
+        />
+
+        {/* Redeem Code Modal */}
+        <CodeRedeemModal
+          visible={redeemModalVisible}
+          onClose={() => setRedeemModalVisible(false)}
+          onSuccess={({ eventId }) => {
+            setSelectedEventId(eventId);
+          }}
         />
       </View>
     );
