@@ -106,9 +106,13 @@ serve(async (req) => {
       .from('event_code_redemptions')
       .upsert({ event_id: code.event_id, code_id: code.id, user_id: userId, client_instance_id: clientInstanceId }, { onConflict: 'code_id,user_id' });
 
-    // Increment used_count if under max_uses
+    // Increment used_count if under max_uses (ignore errors silently)
     if (code.max_uses === null || code.max_uses === undefined || code.used_count < code.max_uses) {
-      await admin.rpc('http_increment_code_use', { p_code_id: code.id }).catch(() => {});
+      const { error: incErr } = await admin.rpc('http_increment_code_use', { p_code_id: code.id });
+      if (incErr) {
+        // Non-fatal; log and continue
+        console.warn('increment_code_use failed:', incErr.message);
+      }
     }
 
     return new Response(JSON.stringify({ success: true, eventId: code.event_id, role: code.role }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -117,4 +121,3 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: err?.message ?? 'Unknown error' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 });
-
