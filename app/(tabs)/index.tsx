@@ -95,6 +95,7 @@ export default function CheckInScreen() {
     selectedEvent,
     events,
     setSelectedEventId,
+    refreshEvents,
     loading: supabaseLoading,
     signIn
   } = useSupabase();
@@ -616,7 +617,11 @@ export default function CheckInScreen() {
           visible={redeemModalVisible}
           onClose={() => setRedeemModalVisible(false)}
           onSuccess={({ eventId }) => {
-            setSelectedEventId(eventId);
+            // Refresh event list so selectedEvent resolves and attendees can load
+            void (async () => {
+              try { await refreshEvents(); } catch {}
+              setSelectedEventId(eventId);
+            })();
           }}
         />
       </View>

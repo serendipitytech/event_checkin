@@ -18,7 +18,7 @@ export default {
   expo: {
     name: 'CheckIn by Serendipity',
     slug: 'expo-checkin',
-    version: '1.1.0',
+    version: '1.1.1',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -32,7 +32,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.serendipitytech.checkin',
-      buildNumber: '101',
+      buildNumber: '3',
       infoPlist: {
         CFBundleURLTypes: [
           {
@@ -49,6 +49,7 @@ export default {
         backgroundColor: '#ffffff',
       },
       package: 'com.serendipitytech.checkin',
+      versionCode: 3,
       intentFilters: [
         {
           action: 'VIEW',
