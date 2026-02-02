@@ -32,8 +32,8 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.serendipitytech.checkin',
-      buildNumber: '4',
       infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
         CFBundleURLTypes: [
           {
             CFBundleURLName: 'checkin',
