@@ -4,11 +4,13 @@ _Last updated: Feb 2026_
 
 ## Build Profiles
 
-| Profile | Distribution | Purpose |
-|---------|--------------|---------|
-| `development` | Internal | Dev client for local testing |
-| `preview` | Internal | TestFlight internal testing |
-| `production` | App Store | App Store / public TestFlight |
+| Profile | Distribution | Provisioning | Purpose |
+|---------|--------------|--------------|---------|
+| `development` | Internal | Ad Hoc | Dev client for local testing |
+| `preview` | Internal | Ad Hoc | Direct install via QR/link (NOT for TestFlight) |
+| `production` | App Store | Distribution | TestFlight AND App Store |
+
+**Important:** Only `production` builds can be submitted to TestFlight or App Store. The `preview` profile creates Ad Hoc builds that can only be installed directly via a link - they cannot be uploaded to App Store Connect.
 
 ## Pre-Build Checklist
 
@@ -31,20 +33,31 @@ _Last updated: Feb 2026_
 
 ## Build Commands
 
-### TestFlight (Internal Testing)
+### Direct Install Testing (Ad Hoc)
+Use this for quick internal testing without going through TestFlight:
 ```bash
 eas build --profile preview --platform ios
 ```
+After build completes, install directly via the QR code or link from the EAS dashboard.
 
-### Production (App Store)
+**Note:** This build CANNOT be submitted to TestFlight - it uses Ad Hoc provisioning.
+
+### TestFlight / App Store
+Use `production` profile for ANY build that needs to go to TestFlight or App Store:
 ```bash
-eas build --profile production --platform ios
+security unlock-keychain
+eas build --profile production --platform ios --auto-submit
 ```
 
-### Submit to App Store / TestFlight
+This builds AND submits to App Store Connect in one step. The build will appear in TestFlight after Apple processing (10-30 min).
+
+### Submit Existing Build to TestFlight
+If you built without `--auto-submit`:
 ```bash
 eas submit --platform ios --latest
 ```
+
+**Remember:** Only `production` profile builds can be submitted. If you get "Invalid Provisioning Profile" error, you used the wrong profile.
 
 ## Troubleshooting
 
