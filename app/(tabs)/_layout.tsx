@@ -16,9 +16,15 @@ export default function TabsLayout() {
   const { isTablet, isLandscape } = useDeviceLayout();
   const { session } = useSupabase();
 
-  // Use side navigation only for landscape tablet when logged in
-  // When logged out, use bottom tabs (side nav wastes space and does nothing)
-  const useSideNav = isTablet && isLandscape && !!session;
+  const isLoggedIn = !!session;
+  const isLandscapeTablet = isTablet && isLandscape;
+
+  // Side nav: only for landscape tablet when logged in
+  // Otherwise: bottom tabs (or hidden in landscape when logged out)
+  const useSideNav = isLandscapeTablet && isLoggedIn;
+
+  // Hide tabs entirely in landscape when logged out (wastes space, does nothing)
+  const hideTabs = isLandscapeTablet && !isLoggedIn;
 
   return (
     <Tabs
@@ -26,19 +32,21 @@ export default function TabsLayout() {
         tabBarActiveTintColor: '#f5cb08',
         tabBarInactiveTintColor: '#9c9c9c',
         tabBarPosition: useSideNav ? 'left' : 'bottom',
-        tabBarShowLabel: !useSideNav, // Hide labels in side nav (icon-only)
-        tabBarStyle: useSideNav
-          ? {
-              backgroundColor: '#1f1f1f',
-              borderRightColor: '#2b2b2b',
-              borderRightWidth: 1,
-              width: 56, // Narrower icon-only side nav
-              paddingTop: 20,
-            }
-          : {
-              backgroundColor: '#1f1f1f',
-              borderTopColor: '#2b2b2b',
-            },
+        tabBarShowLabel: !useSideNav,
+        tabBarStyle: hideTabs
+          ? { display: 'none' }
+          : useSideNav
+            ? {
+                backgroundColor: '#1f1f1f',
+                borderRightColor: '#2b2b2b',
+                borderRightWidth: 1,
+                width: 56,
+                paddingTop: 20,
+              }
+            : {
+                backgroundColor: '#1f1f1f',
+                borderTopColor: '#2b2b2b',
+              },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
