@@ -236,6 +236,80 @@ The Metro bundler terminal shows `console.log` output. Look for:
 
 ---
 
+## iPad Testing (v1.3.1+)
+
+### 9. iPad Grid Layout - Portrait
+
+**Setup:** Use iPad Simulator (iPad 10th gen or iPad Pro)
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Launch app in portrait | Attendee cards in 2-column grid |
+| 2 | Observe card layout | Name, table, ticket, group visible per card |
+| 3 | Tap a pending attendee | Confirmation modal opens (single tap) |
+| 4 | Confirm check-in | Attendee marked as checked |
+| 5 | Go to Checked In tab | Cards show amber border |
+| 6 | Hold card for 0.8s | Undo modal opens |
+
+---
+
+### 10. iPad Grid Layout - Landscape
+
+**Setup:** Rotate iPad Simulator to landscape (`Cmd + Right Arrow`)
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Observe grid | 4-column layout |
+| 2 | Observe navigation | Tab bar on LEFT side (not bottom) |
+| 3 | Tap attendee card | Confirmation modal opens |
+| 4 | Observe modal | Centered, max-width ~500px (not full width) |
+| 5 | Rotate back to portrait | Grid changes to 2 columns, tabs move to bottom |
+
+---
+
+### 11. iPad Feature Flag Toggle
+
+**Setup:** Sign in as Manager or Admin
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Go to Admin tab | iPad Layout toggle visible (future UI) |
+| 2 | Note: Currently enabled by default | Grid layout active |
+| 3 | Disable iPad Layout (when UI available) | Falls back to single-column list |
+| 4 | Re-enable | Grid layout returns |
+
+---
+
+### 12. iPad Modal Sizing
+
+**Setup:** iPad in landscape mode
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Trigger check-in modal | Modal width ≤500px, centered |
+| 2 | Open Code Redeem modal | Modal width ≤500px, centered |
+| 3 | Open QR Code modal | Modal width ~400px, centered |
+| 4 | Modals should not stretch full width | Clean, centered appearance |
+
+---
+
+### iPad Simulator Tips
+
+```bash
+# Boot iPad simulator
+xcrun simctl boot "iPad (10th generation)"
+open -a Simulator
+
+# Or iPad Pro for larger screen
+xcrun simctl boot "iPad Pro 12.9-inch (6th generation)"
+```
+
+**Rotation shortcuts:**
+- `Cmd + Left Arrow` - Rotate left
+- `Cmd + Right Arrow` - Rotate right
+
+---
+
 ## Pre-Release Checklist
 
 Run through these before any release:
@@ -246,3 +320,6 @@ Run through these before any release:
 - [ ] Settings persist after app restart
 - [ ] Offline queue syncs correctly
 - [ ] Real-time updates work between devices
+- [ ] iPad portrait: 2-column grid works
+- [ ] iPad landscape: 4-column grid + side nav works
+- [ ] Orientation changes handled smoothly

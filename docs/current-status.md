@@ -8,19 +8,60 @@ _Last updated: Feb 2026_
 
 | Platform | Status | Version |
 |----------|--------|---------|
-| iOS App Store | Live | v1.1.1 |
-| TestFlight | Active | v1.2.0 (1.0.21) |
+| iOS App Store | v1.3.0 submitted for review | 1.3.0 (1.0.23) |
+| TestFlight | Active | v1.3.0 (1.0.23) |
 | Web (Vercel) | Stable | - |
 | Supabase (Prod) | Live | - |
 | Android | Planned | - |
 
 ---
 
-## v1.3 Offline Mode + Undo UX - IN PROGRESS
+## v1.3.1 iPad View Optimization - IN PROGRESS
 
-**Branch:** `feature/offline-mode`
+**Branch:** `feature/ipad-view`
+**Target:** Nice-to-have for 2/20/2026 event
+**Priority:** Medium - UX enhancement for iPad users
+
+### Completed ✅
+
+1. **Responsive Infrastructure**
+   - `constants/responsive.ts` - Breakpoints, grid columns, spacing scales
+   - `hooks/useDeviceLayout.ts` - Device type and orientation detection
+   - `hooks/useResponsiveValue.ts` - Responsive value selection
+   - `hooks/useModalWidth.ts` - Constrained modal widths on tablet
+   - `enableiPadLayout` feature flag (default: true)
+
+2. **Multi-Column Grid Layout**
+   - Phone: 1 column (list view with swipe gestures)
+   - Tablet portrait: 2 columns (card view with tap gestures)
+   - Tablet landscape: 4 columns (card view with tap gestures)
+   - `components/AttendeeCard.tsx` - Supports row and card modes
+
+3. **Adaptive Navigation**
+   - Bottom tab bar for phone and portrait iPad
+   - Side tab bar (80px, left) for landscape iPad
+   - Automatic switching based on orientation
+
+4. **Modal Optimization**
+   - Check-in/undo modals: max-width 500px on tablet
+   - CodeRedeemModal: responsive width
+   - QRCodeModal: larger padding on tablet (400px max)
+
+5. **Testing Documentation**
+   - iPad test scenarios added to simulator-testing-guide.md
+
+### Remaining 📋
+
+- [ ] Add Admin UI toggle for iPad layout feature flag
+- [ ] Fine-tune card styling for tablet
+- [ ] Test on physical iPad devices
+
+---
+
+## v1.3 Offline Mode + Undo UX - ✅ RELEASED
+
+**Version:** 1.3.0 (1.0.23) - Submitted to App Store
 **Target:** 2/20/2026 event deadline
-**Priority:** High - Core functionality for unreliable venue connectivity
 
 ### Completed ✅
 
