@@ -160,8 +160,8 @@ Supabase Vault
 |------|----------|
 | `.env.production` | `EXPO_PUBLIC_REDIRECT_URL=checkin://auth` |
 | `.env.development` | `EXPO_PUBLIC_REDIRECT_URL=https://.../redirect-dev` |
-| `ENVIRONMENT-WORKFLOW.md` | Describes redirect / build pipeline |
-| `QA-CHECKLIST.md` | Test steps before merge to `main` |
+| `docs/eas-build-deployment.md` | EAS build commands and troubleshooting |
+| `docs/mvp_qa_list.md` | QA checklist for releases |
 | `ROADMAP.md` | (this file) shared plan for Cursor + Codex |
 | `docs/current-status.md` | Detailed current project status |
 
