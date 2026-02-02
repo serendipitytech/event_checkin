@@ -25,7 +25,17 @@
     }
   },
   "submit": {
-    "preview": {},
-    "production": {}
+    "preview": {
+      "ios": {
+        "appleTeamId": "F5UNTS8J68",
+        "ascAppId": "6753634748"
+      }
+    },
+    "production": {
+      "ios": {
+        "appleTeamId": "F5UNTS8J68",
+        "ascAppId": "6753634748"
+      }
+    }
   }
 }
