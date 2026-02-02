@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { ActivityIndicator, Alert, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { redeemEventCode } from '../services/accessCodes';
+import { useModalWidth } from '../hooks/useModalWidth';
 
 type Props = {
   visible: boolean;
@@ -18,6 +19,7 @@ type Props = {
 export const CodeRedeemModal: React.FC<Props> = ({ visible, onClose, onSuccess, initialCode }) => {
   const [code, setCode] = useState(initialCode ?? '');
   const [loading, setLoading] = useState(false);
+  const modalWidth = useModalWidth();
 
   useEffect(() => {
     if (initialCode && visible) {
@@ -51,7 +53,7 @@ export const CodeRedeemModal: React.FC<Props> = ({ visible, onClose, onSuccess, 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.modal}>
+        <View style={[styles.modal, { width: modalWidth }]}>
           <Text style={styles.title}>Enter Access Code</Text>
           <Text style={styles.subtitle}>Ask your event planner for your code.</Text>
           <TextInput
@@ -83,7 +85,7 @@ export const CodeRedeemModal: React.FC<Props> = ({ visible, onClose, onSuccess, 
 };
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', padding: 24 },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modal: { backgroundColor: '#fff', borderRadius: 12, padding: 16 },
   title: { fontSize: 18, fontWeight: '600', marginBottom: 6 },
   subtitle: { color: '#6b7280', marginBottom: 12 },

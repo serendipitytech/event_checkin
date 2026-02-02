@@ -24,6 +24,7 @@ import {
   getShareMessage,
 } from '../services/qrCodeGeneration';
 import { formatCodeForDisplay } from '../services/codeManagement';
+import { useDeviceLayout } from '../hooks/useDeviceLayout';
 
 type QRCodeModalProps = {
   visible: boolean;
@@ -42,6 +43,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
 }) => {
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const { isTablet } = useDeviceLayout();
 
   useEffect(() => {
     if (copiedCode) {
@@ -105,7 +107,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.modal}>
+        <View style={[styles.modal, isTablet && styles.modalTablet]}>
           <View style={styles.header}>
             <Text style={styles.title}>Share Access Code</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -190,6 +192,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 340,
     alignItems: 'center',
+  },
+  modalTablet: {
+    maxWidth: 400,
+    padding: 32,
   },
   header: {
     flexDirection: 'row',

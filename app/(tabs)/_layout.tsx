@@ -1,31 +1,53 @@
 /**
  * Lintnotes
  * - Purpose: Tab navigator layout configuring the two primary tabs and shared tab UI styling.
+ *            Supports adaptive navigation: side tabs for landscape iPad, bottom tabs otherwise.
  * - Exports: default TabsLayout (React component)
- * - Major deps: expo-router Tabs, @expo/vector-icons/Ionicons
+ * - Major deps: expo-router Tabs, @expo/vector-icons/Ionicons, hooks/useDeviceLayout
  * - Side effects: None (navigation configuration only).
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 
+import { useDeviceLayout } from '../../hooks/useDeviceLayout';
+
 export default function TabsLayout() {
+  const { layout, isTablet, isLandscape } = useDeviceLayout();
+
+  // Use side navigation for landscape tablet, bottom tabs otherwise
+  const useSideNav = isTablet && isLandscape;
+
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#f5cb08',
         tabBarInactiveTintColor: '#9c9c9c',
-        tabBarStyle: {
-          backgroundColor: '#1f1f1f',
-          borderTopColor: '#2b2b2b'
-        },
+        tabBarPosition: useSideNav ? 'left' : 'bottom',
+        tabBarStyle: useSideNav
+          ? {
+              backgroundColor: '#1f1f1f',
+              borderRightColor: '#2b2b2b',
+              borderRightWidth: 1,
+              width: 80,
+              paddingTop: 20,
+            }
+          : {
+              backgroundColor: '#1f1f1f',
+              borderTopColor: '#2b2b2b',
+            },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600'
+          fontSize: useSideNav ? 10 : 11,
+          fontWeight: '600',
         },
+        tabBarIconStyle: useSideNav
+          ? {
+              marginBottom: 2,
+            }
+          : undefined,
         headerTintColor: '#1f1f1f',
         headerStyle: {
-          backgroundColor: '#fdfdfd'
-        }
+          backgroundColor: '#fdfdfd',
+        },
       }}
     >
       <Tabs.Screen
