@@ -82,7 +82,7 @@ All live testing happens in `dev` via Expo or internal TestFlight.
 - [x] QR code deep links verified (`checkin://` scheme)
 - [ ] App Store release (pending QA)
 
-### v1.3 — Offline Mode (Feb 2026) IN PROGRESS
+### v1.3 — Offline Mode + Undo UX (Feb 2026) IN PROGRESS
 **Target:** 2/20/2026 event deadline
 
 **Existing Infrastructure:**
@@ -91,23 +91,53 @@ All live testing happens in `dev` via Expo or internal TestFlight.
 - [x] Realtime reconnection with exponential backoff
 - [x] Session and event persistence
 
-**To Build:**
-- [ ] Check-in queue system (`services/offlineQueue.ts`)
-- [ ] Sync manager for reconnection (`services/syncManager.ts`)
-- [ ] Offline UI indicator (`components/OfflineIndicator.tsx`)
-- [ ] Update check-in flow to queue when offline
-- [ ] Conflict resolution (server wins)
-- [ ] OfflineIndicator component for UI feedback
-- [ ] Launch app in read-only mode when offline
-- [ ] Queue check-ins locally when no connectivity
-- [ ] Sync queued operations when connectivity returns
+**Offline Mode:**
+- [x] Check-in queue system (`services/offlineQueue.ts`)
+- [x] Sync manager for reconnection (`services/syncManager.ts`)
+- [x] Offline UI indicator (`components/OfflineIndicator.tsx`)
+- [x] Update check-in flow to queue when offline
+- [x] Conflict resolution (server wins)
+- [ ] Handle edge cases (app killed while offline)
+- [ ] Failed sync retry UI
 - [ ] EAS Android build & Play Store internal track
 
-### v1.4 — Customization & Analytics (Apr 2026)
+**Undo UX Improvements:**
+- [x] Visual differentiation for Checked-In tab (amber indicator, tinted background, bordered rows)
+- [x] "Viewing checked-in guests" banner
+- [x] Hold-to-undo gesture (0.8s) replaces swipe for checked-in attendees
+- [x] Double-tap fallback for power users
+- [x] "Hold to undo" hint text on rows
+- [x] Different undo modal (red, warning message, simplified)
+- [x] Feature flag infrastructure (`services/settings.ts`, `hooks/useSettings.ts`)
+- [x] Admin UI toggle for undo protection level
+- [ ] Strict mode (type "UNDO" to confirm) - deferred to v1.4
+
+**Testing & QA:**
+- [x] Unit tests for settings service (23 tests)
+- [x] Jest infrastructure with AsyncStorage mocks
+- [x] Updated QA checklist (`docs/mvp_qa_list.md`)
+- [x] Simulator testing guide (`docs/simulator-testing-guide.md`)
+
+### v1.4 — Testing, Analytics & Polish (Apr 2026)
+
+**Testing Infrastructure:**
+- [ ] Integration tests (mock Supabase responses)
+- [ ] E2E tests with Detox for critical flows
+- [ ] CI pipeline with automated test runs
+- [ ] Code coverage reporting (target: 60%+)
+
+**Features:**
 - [ ] Event-specific banner / accent color
 - [ ] Attendance summary & CSV export
-- [ ] Reset All Check-Ins button (Manager only)
+- [ ] Check-in audit trail (who checked in whom, when)
+- [ ] Strict undo mode (type "UNDO" to confirm)
 - [ ] /debug and /health internal pages
+
+### v1.5 — Android & Cross-Platform (May 2026)
+- [ ] EAS Android build configuration
+- [ ] Play Store internal track submission
+- [ ] Android-specific gesture handling review
+- [ ] Cross-platform testing automation
 
 ### v2.0 — Anonymous Event Links (Summer 2026)
 - [ ] Public QR / URL → auto anonymous login via Supabase
@@ -161,8 +191,18 @@ Supabase Vault
 | `.env.development` | `EXPO_PUBLIC_REDIRECT_URL=https://.../redirect-dev` |
 | `docs/eas-build-deployment.md` | EAS build commands and troubleshooting |
 | `docs/mvp_qa_list.md` | QA checklist for releases |
+| `docs/simulator-testing-guide.md` | Step-by-step simulator testing |
 | `ROADMAP.md` | (this file) shared plan for Cursor + Codex |
 | `docs/current-status.md` | Detailed current project status |
+
+## Testing Infrastructure
+| File | Purpose |
+|------|----------|
+| `jest.config.js` | Jest configuration for Expo |
+| `__tests__/setup.ts` | Test setup with AsyncStorage mock |
+| `__tests__/services/settings.test.ts` | Settings service unit tests (23 tests) |
+
+**Run tests:** `npm test`
 
 ---
 
@@ -170,9 +210,10 @@ Supabase Vault
 | Milestone | Target | Focus |
 |------------|---------|-------|
 | **v1.1.x** | Jan 2026 | Bug fixes + UI polish |
-| **v1.2** | Feb 2026 | Shareable Access Codes ← CURRENT |
-| **v1.3** | Mar 2026 | Offline mode + Android |
-| **v1.4** | Apr 2026 | Custom branding + Analytics |
+| **v1.2** | Feb 2026 | Shareable Access Codes (in TestFlight) |
+| **v1.3** | Feb 2026 | Offline mode + Undo UX ← CURRENT |
+| **v1.4** | Apr 2026 | Testing infrastructure + Analytics |
+| **v1.5** | May 2026 | Android + Cross-platform |
 | **v2.0** | Summer 2026 | Anonymous event access |
 
 ---

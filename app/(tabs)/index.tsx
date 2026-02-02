@@ -59,6 +59,7 @@ import ActionButton from '../../components/ActionButton';
 import { RequestInfoModal } from '../../components/RequestInfoModal';
 import { CodeRedeemModal } from '../../components/CodeRedeemModal';
 import { OfflineIndicator } from '../../components/OfflineIndicator';
+import { useUndoProtectionLevel } from '../../hooks/useSettings';
 
 type CheckInStatus = 'pending' | 'checked-in';
 const segments: CheckInStatus[] = ['pending', 'checked-in'];
@@ -101,6 +102,7 @@ export default function CheckInScreen() {
     signIn
   } = useSupabase();
   const { canToggleCheckins, canViewAttendees } = usePermissions();
+  const undoProtectionLevel = useUndoProtectionLevel();
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [activeStatus, setActiveStatus] = useState<CheckInStatus>('pending');
   const [searchTerm, setSearchTerm] = useState('');
@@ -452,63 +454,148 @@ export default function CheckInScreen() {
     ({ item }) => {
       let swipeRef: Swipeable | null = null;
       const isPending = !item.checkedIn;
-      const actionLabel = isPending ? 'Check In' : 'Undo';
-      const actionColor = isPending ? '#27ae60' : '#c0392b';
       const groupLabel = item.groupName || 'No group';
       const tableLabel = item.tableNumber || '—';
       const ticketLabel = item.ticketType || '—';
+      const viewingCheckedIn = activeStatus === 'checked-in';
 
-      return (
-        <Swipeable
-          ref={(ref) => {
-            swipeRef = ref;
-          }}
-          friction={2}
-          leftThreshold={72}
-          overshootLeft={false}
-          renderLeftActions={() => (
-            <View style={[styles.swipeAction, { backgroundColor: actionColor }]}> 
-              <Text style={styles.swipeActionLabel}>{actionLabel}</Text>
-            </View>
-          )}
-          onSwipeableLeftOpen={() =>
-            openConfirmation(item, isPending ? 'check-in' : 'undo', 'swipe', () => swipeRef?.close())
-          }
+      const rowContent = (
+        <View
+          style={[
+            styles.row,
+            !isPending && viewingCheckedIn && styles.rowCheckedInView
+          ]}
         >
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => {
-              const now = Date.now();
-              if (lastTapRef.current && lastTapRef.current.id === item.id && now - lastTapRef.current.timestamp < 400) {
-                lastTapRef.current = null;
-                openConfirmation(item, isPending ? 'check-in' : 'undo', 'tap', () => swipeRef?.close());
-              } else {
-                lastTapRef.current = { id: item.id, timestamp: now };
-              }
-            }}
-            style={styles.row}
-            accessibilityRole="button"
-            accessibilityLabel={`${item.attendeeName}. Group ${groupLabel}. Table ${tableLabel}. Ticket ${ticketLabel}.`}
-          >
-            <View style={styles.rowInfo}>
-              <Text style={styles.rowName}>{item.attendeeName}</Text>
+          <View style={styles.rowInfo}>
+            <Text style={styles.rowName}>{item.attendeeName}</Text>
+            <View style={styles.rowMetaContainer}>
               <Text style={styles.rowMeta}>{`${groupLabel} • Table ${tableLabel} • ${ticketLabel}`}</Text>
+              {!isPending && viewingCheckedIn && undoProtectionLevel === 'standard' && (
+                <Text style={styles.holdToUndoHint}>Hold to undo</Text>
+              )}
             </View>
-            <View style={[styles.statusPill, isPending ? styles.statusPending : styles.statusChecked]}>
-              <Text style={styles.statusPillLabel}>{isPending ? 'Pending' : 'Checked'}</Text>
-            </View>
-          </TouchableOpacity>
-        </Swipeable>
+          </View>
+          <View style={[styles.statusPill, isPending ? styles.statusPending : styles.statusChecked]}>
+            <Text style={styles.statusPillLabel}>{isPending ? 'Pending' : 'Checked'}</Text>
+          </View>
+        </View>
+      );
+
+      // For pending attendees: use swipe gesture
+      if (isPending) {
+        return (
+          <Swipeable
+            ref={(ref) => {
+              swipeRef = ref;
+            }}
+            friction={2}
+            leftThreshold={72}
+            overshootLeft={false}
+            renderLeftActions={() => (
+              <View style={[styles.swipeAction, { backgroundColor: '#27ae60' }]}>
+                <Text style={styles.swipeActionLabel}>Check In</Text>
+              </View>
+            )}
+            onSwipeableLeftOpen={() =>
+              openConfirmation(item, 'check-in', 'swipe', () => swipeRef?.close())
+            }
+          >
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                const now = Date.now();
+                if (lastTapRef.current && lastTapRef.current.id === item.id && now - lastTapRef.current.timestamp < 400) {
+                  lastTapRef.current = null;
+                  openConfirmation(item, 'check-in', 'tap', () => swipeRef?.close());
+                } else {
+                  lastTapRef.current = { id: item.id, timestamp: now };
+                }
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.attendeeName}. Group ${groupLabel}. Table ${tableLabel}. Ticket ${ticketLabel}. Pending.`}
+            >
+              {rowContent}
+            </TouchableOpacity>
+          </Swipeable>
+        );
+      }
+
+      // For checked-in attendees: behavior depends on protection level
+      if (undoProtectionLevel === 'relaxed') {
+        // Relaxed: same swipe behavior as before
+        return (
+          <Swipeable
+            ref={(ref) => {
+              swipeRef = ref;
+            }}
+            friction={2}
+            leftThreshold={72}
+            overshootLeft={false}
+            renderLeftActions={() => (
+              <View style={[styles.swipeAction, { backgroundColor: '#c0392b' }]}>
+                <Text style={styles.swipeActionLabel}>Undo</Text>
+              </View>
+            )}
+            onSwipeableLeftOpen={() =>
+              openConfirmation(item, 'undo', 'swipe', () => swipeRef?.close())
+            }
+          >
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                const now = Date.now();
+                if (lastTapRef.current && lastTapRef.current.id === item.id && now - lastTapRef.current.timestamp < 400) {
+                  lastTapRef.current = null;
+                  openConfirmation(item, 'undo', 'tap', () => swipeRef?.close());
+                } else {
+                  lastTapRef.current = { id: item.id, timestamp: now };
+                }
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.attendeeName}. Group ${groupLabel}. Table ${tableLabel}. Ticket ${ticketLabel}. Checked in.`}
+            >
+              {rowContent}
+            </TouchableOpacity>
+          </Swipeable>
+        );
+      }
+
+      // Standard/Strict: hold to undo (no swipe), double-tap fallback
+      return (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          delayLongPress={800}
+          onLongPress={() => {
+            openConfirmation(item, 'undo', 'tap');
+          }}
+          onPress={() => {
+            const now = Date.now();
+            if (lastTapRef.current && lastTapRef.current.id === item.id && now - lastTapRef.current.timestamp < 400) {
+              lastTapRef.current = null;
+              openConfirmation(item, 'undo', 'tap');
+            } else {
+              lastTapRef.current = { id: item.id, timestamp: now };
+            }
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.attendeeName}. Group ${groupLabel}. Table ${tableLabel}. Ticket ${ticketLabel}. Checked in. Hold to undo.`}
+          accessibilityHint="Hold for 0.8 seconds to undo check-in"
+        >
+          {rowContent}
+        </TouchableOpacity>
       );
     },
-    [openConfirmation]
+    [openConfirmation, activeStatus, undoProtectionLevel]
   );
 
+  const isCheckedInTab = activeStatus === 'checked-in';
+
   const renderFilters = useCallback(() => (
-    <View style={styles.filtersContainer}>
+    <View style={[styles.filtersContainer, isCheckedInTab && styles.filtersContainerCheckedIn]}>
       <View style={styles.segmentContainer}>
         {segments.map((segment) => {
           const isActive = activeStatus === segment;
+          const isCheckedInSegment = segment === 'checked-in';
           return (
             <View key={segment} style={styles.segmentWrapper}>
               <TouchableOpacity
@@ -524,11 +611,24 @@ export default function CheckInScreen() {
                   {segment === 'pending' ? 'Pending' : 'Checked In'}
                 </Text>
               </TouchableOpacity>
-              {isActive && <View style={styles.segmentIndicator} />}
+              {isActive && (
+                <View
+                  style={[
+                    styles.segmentIndicator,
+                    isCheckedInSegment && styles.segmentIndicatorAmber
+                  ]}
+                />
+              )}
             </View>
           );
         })}
       </View>
+
+      {isCheckedInTab && (
+        <View style={styles.checkedInBanner}>
+          <Text style={styles.checkedInBannerText}>Viewing checked-in guests</Text>
+        </View>
+      )}
 
       <View style={styles.searchRow}>
         <Ionicons name="search" size={16} color="#7c7c7c" accessibilityElementsHidden />
@@ -588,7 +688,7 @@ export default function CheckInScreen() {
         </View>
       )}
     </View>
-  ), [activeStatus, error, searchTerm, sortsVisible, sortKey, sortOrder, toggleSort]);
+  ), [activeStatus, error, searchTerm, sortsVisible, sortKey, sortOrder, toggleSort, isCheckedInTab]);
 
   if (supabaseLoading) {
     return (
@@ -774,11 +874,9 @@ export default function CheckInScreen() {
         onRequestClose={() => setPendingModal(null)}
       >
         <View style={styles.modalBackdrop}>
-          {pendingModal && (
+          {pendingModal && pendingModal.action === 'check-in' && (
             <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>
-                {pendingModal.action === 'check-in' ? 'Confirm Check-In' : 'Undo Check-In'}
-              </Text>
+              <Text style={styles.modalTitle}>Confirm Check-In</Text>
               <View style={styles.modalContent}>
                 <Text style={styles.modalName}>{pendingModal.attendee.attendeeName}</Text>
                 <Text style={styles.modalMeta}>{pendingModal.attendee.groupName || 'No group'}</Text>
@@ -789,29 +887,53 @@ export default function CheckInScreen() {
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalPrimaryButton]}
                 onPress={async () => {
-                  const isCheckIn = pendingModal.action === 'check-in';
-                  await handleConfirm(pendingModal.attendee, isCheckIn);
+                  await handleConfirm(pendingModal.attendee, true);
                   setPendingModal(null);
                 }}
                 activeOpacity={0.85}
               >
-                <Text style={styles.modalPrimaryLabel}>
-                  {pendingModal.action === 'check-in' ? 'Confirm Check-In' : 'Confirm Undo'}
-                </Text>
+                <Text style={styles.modalPrimaryLabel}>Confirm Check-In</Text>
               </TouchableOpacity>
 
-              {pendingModal.action === 'check-in' && (
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.modalSecondaryButton]}
-                  onPress={() => {
-                    setGroupPrompt(pendingModal.attendee);
-                    setPendingModal(null);
-                  }}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.modalSecondaryLabel}>Check In Group</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalSecondaryButton]}
+                onPress={() => {
+                  setGroupPrompt(pendingModal.attendee);
+                  setPendingModal(null);
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalSecondaryLabel}>Check In Group</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalCancel}
+                onPress={() => setPendingModal(null)}
+              >
+                <Text style={styles.modalCancelLabel}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {pendingModal && pendingModal.action === 'undo' && (
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitleUndo}>Return to Pending</Text>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalNameUndo}>{pendingModal.attendee.attendeeName}</Text>
+                <Text style={styles.modalWarning}>
+                  You are returning this guest to the non-checked-in list.
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalUndoButton]}
+                onPress={async () => {
+                  await handleConfirm(pendingModal.attendee, false);
+                  setPendingModal(null);
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalUndoLabel}>Return to Pending</Text>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.modalCancel}
@@ -1042,6 +1164,22 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     gap: 8
   },
+  filtersContainerCheckedIn: {
+    backgroundColor: '#fff8e6'
+  },
+  checkedInBanner: {
+    backgroundColor: '#fff0cc',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 4
+  },
+  checkedInBannerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#a65f00',
+    textAlign: 'center'
+  },
   listContent: {
     paddingBottom: 24
   },
@@ -1077,6 +1215,9 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1.5,
     backgroundColor: '#007aff'
+  },
+  segmentIndicatorAmber: {
+    backgroundColor: '#ff9500'
   },
   searchRow: {
     flexDirection: 'row',
@@ -1151,9 +1292,24 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#ffffff'
   },
+  rowCheckedInView: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff9500',
+    paddingLeft: 12
+  },
   rowInfo: {
     flex: 1,
     paddingRight: 12
+  },
+  rowMetaContainer: {
+    flexDirection: 'column',
+    gap: 2
+  },
+  holdToUndoHint: {
+    fontSize: 11,
+    fontStyle: 'italic',
+    color: '#a65f00',
+    marginTop: 2
   },
   rowName: {
     fontSize: 17,
@@ -1241,6 +1397,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1f1f1f'
   },
+  modalTitleUndo: {
+    fontSize: 20,
+    fontFamily: 'System',
+    fontWeight: '700',
+    color: '#c0392b'
+  },
   modalContent: {
     gap: 6
   },
@@ -1249,6 +1411,19 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     fontWeight: '700',
     color: '#050505'
+  },
+  modalNameUndo: {
+    fontSize: 22,
+    fontFamily: 'System',
+    fontWeight: '700',
+    color: '#1f1f1f'
+  },
+  modalWarning: {
+    fontSize: 15,
+    fontFamily: 'System',
+    color: '#8b0000',
+    lineHeight: 22,
+    marginTop: 8
   },
   modalMeta: {
     fontSize: 14,
@@ -1283,6 +1458,15 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     fontWeight: '600',
     color: '#1f1f1f'
+  },
+  modalUndoButton: {
+    backgroundColor: '#c0392b'
+  },
+  modalUndoLabel: {
+    fontSize: 16,
+    fontFamily: 'System',
+    fontWeight: '600',
+    color: '#ffffff'
   },
   modalCancel: {
     marginTop: 4,

@@ -91,6 +91,74 @@ const saveAttendeesToCache = async (eventId: string, attendees: Attendee[]): Pro
 };
 
 /**
+ * Update the cache optimistically when queuing an offline check-in
+ */
+const updateCacheOptimistically = async (
+  eventId: string,
+  attendeeId: string,
+  checkedIn: boolean
+): Promise<void> => {
+  try {
+    const cached = await loadAttendeesFromCache(eventId);
+    if (!cached) return;
+
+    const updated = cached.map((attendee) =>
+      attendee.id === attendeeId
+        ? {
+            ...attendee,
+            checkedIn,
+            checkedInAt: checkedIn ? new Date().toISOString() : null,
+          }
+        : attendee
+    );
+
+    await saveAttendeesToCache(eventId, updated);
+    console.log(`📝 Updated cache optimistically for attendee ${attendeeId}`);
+  } catch (error) {
+    console.error('Failed to update cache optimistically:', error);
+  }
+};
+
+/**
+ * Apply pending offline check-ins to attendee list
+ * This ensures optimistic UI updates persist when loading from cache
+ */
+const applyPendingCheckIns = async (eventId: string, attendees: Attendee[]): Promise<Attendee[]> => {
+  try {
+    const { getPendingOperations } = await import('./offlineQueue');
+    const pending = await getPendingOperations(eventId);
+
+    if (pending.length === 0) {
+      return attendees;
+    }
+
+    console.log(`🔄 Applying ${pending.length} pending offline check-ins to attendee list`);
+
+    // Create a map of pending states by attendee ID
+    const pendingStates = new Map<string, boolean>();
+    for (const op of pending) {
+      pendingStates.set(op.attendeeId, op.checkedIn);
+    }
+
+    // Apply pending states to attendees
+    return attendees.map((attendee) => {
+      const pendingState = pendingStates.get(attendee.id);
+      if (pendingState !== undefined) {
+        return {
+          ...attendee,
+          checkedIn: pendingState,
+          checkedInAt: pendingState ? new Date().toISOString() : null,
+        };
+      }
+      return attendee;
+    });
+  } catch (error) {
+    console.error('Failed to apply pending check-ins:', error);
+    return attendees;
+  }
+};
+
+/**
  * Load attendees from AsyncStorage cache
  */
 const loadAttendeesFromCache = async (eventId: string): Promise<Attendee[] | null> => {
@@ -121,7 +189,9 @@ export const fetchAttendees = async (eventId: string, useCache: boolean = true):
     console.log('📴 Offline detected, loading from cache');
     const cached = await loadAttendeesFromCache(eventId);
     if (cached) {
-      return cached;
+      // Apply any pending offline check-ins to show optimistic state
+      const withPending = await applyPendingCheckIns(eventId, cached);
+      return withPending;
     }
     console.warn('⚠️ No cache available for offline use');
     throw new Error('Unable to load attendees while offline');
@@ -143,7 +213,9 @@ export const fetchAttendees = async (eventId: string, useCache: boolean = true):
       const cached = await loadAttendeesFromCache(eventId);
       if (cached) {
         console.log('✅ Using cached data as fallback');
-        return cached;
+        // Apply any pending offline check-ins
+        const withPending = await applyPendingCheckIns(eventId, cached);
+        return withPending;
       }
     }
     
@@ -228,6 +300,8 @@ export const toggleCheckin = async (
     const result = await queueCheckIn(attendeeId, eventId, checkedIn);
 
     if (result.success) {
+      // Update the local cache optimistically so refreshes show correct state
+      await updateCacheOptimistically(eventId, attendeeId, checkedIn);
       return { success: true, queued: true };
     } else {
       return { success: false, queued: false, error: result.error };

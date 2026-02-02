@@ -39,6 +39,8 @@ import type { ImportResult } from '../../services/rosterImport';
 import { deleteLocalSession, deleteMyAccount } from '../../services/account';
 import { addCodeLinkListener, type CodeLinkPayload } from '../../services/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUndoProtectionLevel } from '../../hooks/useSettings';
+import { setUndoProtectionLevel, type UndoProtectionLevel } from '../../services/settings';
 
 const PENDING_CODE_KEY = '@checkin_pending_code';
 
@@ -84,6 +86,7 @@ export default function AdminScreen() {
   const [accessCodeDashboardVisible, setAccessCodeDashboardVisible] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [pendingCode, setPendingCode] = useState<string | undefined>(undefined);
+  const undoProtectionLevel = useUndoProtectionLevel();
 
   useEffect(() => {
     const remove = addAutoRefreshListener((interval) => {
@@ -392,6 +395,81 @@ export default function AdminScreen() {
           </View>
         </View>
 
+        {/* Undo Protection - Manager/Admin only */}
+        {(userRole === 'manager' || userRole === 'admin') && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Undo Protection</Text>
+            <Text style={styles.cardSubtitle}>
+              Control how check-ins are undone. Higher protection prevents accidental undos.
+            </Text>
+            <View style={styles.undoProtectionOptions}>
+              <TouchableOpacity
+                onPress={() => void setUndoProtectionLevel('relaxed')}
+                style={[
+                  styles.undoProtectionOption,
+                  undoProtectionLevel === 'relaxed' && styles.undoProtectionOptionActive
+                ]}
+                activeOpacity={0.8}
+              >
+                <View style={styles.undoProtectionOptionHeader}>
+                  <Text style={[
+                    styles.undoProtectionOptionTitle,
+                    undoProtectionLevel === 'relaxed' && styles.undoProtectionOptionTitleActive
+                  ]}>
+                    Relaxed
+                  </Text>
+                </View>
+                <Text style={[
+                  styles.undoProtectionOptionDesc,
+                  undoProtectionLevel === 'relaxed' && styles.undoProtectionOptionDescActive
+                ]}>
+                  Swipe + confirm
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => void setUndoProtectionLevel('standard')}
+                style={[
+                  styles.undoProtectionOption,
+                  undoProtectionLevel === 'standard' && styles.undoProtectionOptionActive
+                ]}
+                activeOpacity={0.8}
+              >
+                <View style={styles.undoProtectionOptionHeader}>
+                  <Text style={[
+                    styles.undoProtectionOptionTitle,
+                    undoProtectionLevel === 'standard' && styles.undoProtectionOptionTitleActive
+                  ]}>
+                    Standard
+                  </Text>
+                  <View style={styles.recommendedBadge}>
+                    <Text style={styles.recommendedBadgeText}>Recommended</Text>
+                  </View>
+                </View>
+                <Text style={[
+                  styles.undoProtectionOptionDesc,
+                  undoProtectionLevel === 'standard' && styles.undoProtectionOptionDescActive
+                ]}>
+                  Hold + confirm
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.undoProtectionOptionDisabled}>
+                <View style={styles.undoProtectionOptionHeader}>
+                  <Text style={styles.undoProtectionOptionTitleDisabled}>
+                    Strict
+                  </Text>
+                  <View style={styles.comingSoonBadge}>
+                    <Text style={styles.comingSoonBadgeText}>Coming Soon</Text>
+                  </View>
+                </View>
+                <Text style={styles.undoProtectionOptionDescDisabled}>
+                  Hold + type "UNDO" to confirm
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Event Settings */}
         <View style={styles.card}>
@@ -794,6 +872,80 @@ const styles = StyleSheet.create({
   },
   autoRefreshChipLabelActive: {
     color: '#ffffff'
+  },
+  undoProtectionOptions: {
+    gap: 12
+  },
+  undoProtectionOption: {
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#f0f0f2',
+    borderWidth: 2,
+    borderColor: 'transparent'
+  },
+  undoProtectionOptionActive: {
+    backgroundColor: '#1f1f1f',
+    borderColor: '#1f1f1f'
+  },
+  undoProtectionOptionDisabled: {
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#f7f7f7',
+    opacity: 0.6
+  },
+  undoProtectionOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4
+  },
+  undoProtectionOptionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1f1f1f'
+  },
+  undoProtectionOptionTitleActive: {
+    color: '#ffffff'
+  },
+  undoProtectionOptionTitleDisabled: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#8e8e93'
+  },
+  undoProtectionOptionDesc: {
+    fontSize: 13,
+    color: '#6e6e73'
+  },
+  undoProtectionOptionDescActive: {
+    color: '#cccccc'
+  },
+  undoProtectionOptionDescDisabled: {
+    fontSize: 13,
+    color: '#a0a0a0'
+  },
+  recommendedBadge: {
+    backgroundColor: '#27ae60',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4
+  },
+  recommendedBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#ffffff',
+    textTransform: 'uppercase'
+  },
+  comingSoonBadge: {
+    backgroundColor: '#e0e0e0',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4
+  },
+  comingSoonBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#6e6e73',
+    textTransform: 'uppercase'
   },
   statusRow: {
     flexDirection: 'row',
