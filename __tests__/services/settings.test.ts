@@ -26,6 +26,7 @@ describe('services/settings', () => {
         autoRefreshInterval: 5000,
         featureFlags: {
           undoProtectionLevel: 'standard',
+          enableiPadLayout: true,
         },
       });
     });
@@ -36,6 +37,7 @@ describe('services/settings', () => {
         autoRefreshInterval: 10000,
         featureFlags: {
           undoProtectionLevel: 'relaxed',
+          enableiPadLayout: false,
         },
       };
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(stored));
@@ -44,6 +46,7 @@ describe('services/settings', () => {
 
       expect(settings.autoRefreshInterval).toBe(10000);
       expect(settings.featureFlags.undoProtectionLevel).toBe('relaxed');
+      expect(settings.featureFlags.enableiPadLayout).toBe(false);
     });
 
     it('merges partial stored settings with defaults', async () => {
@@ -57,6 +60,7 @@ describe('services/settings', () => {
 
       expect(settings.autoRefreshInterval).toBe(15000);
       expect(settings.featureFlags.undoProtectionLevel).toBe('standard'); // default
+      expect(settings.featureFlags.enableiPadLayout).toBe(true); // default
     });
 
     it('handles partial featureFlags', async () => {
@@ -71,6 +75,7 @@ describe('services/settings', () => {
       const settings = await settingsModule.getSettings();
 
       expect(settings.featureFlags.undoProtectionLevel).toBe('standard'); // default
+      expect(settings.featureFlags.enableiPadLayout).toBe(true); // default
     });
 
     it('caches settings after first load', async () => {
@@ -101,6 +106,7 @@ describe('services/settings', () => {
         autoRefreshInterval: 5000,
         featureFlags: {
           undoProtectionLevel: 'standard',
+          enableiPadLayout: true,
         },
       };
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(initial));
@@ -109,6 +115,7 @@ describe('services/settings', () => {
       const updated = await settingsModule.updateSettings({
         featureFlags: {
           undoProtectionLevel: 'relaxed',
+          enableiPadLayout: true,
         },
       });
 
@@ -121,6 +128,7 @@ describe('services/settings', () => {
         autoRefreshInterval: 10000,
         featureFlags: {
           undoProtectionLevel: 'strict',
+          enableiPadLayout: false,
         },
       };
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(initial));
@@ -132,6 +140,7 @@ describe('services/settings', () => {
 
       expect(updated.autoRefreshInterval).toBe(20000);
       expect(updated.featureFlags.undoProtectionLevel).toBe('strict'); // preserved
+      expect(updated.featureFlags.enableiPadLayout).toBe(false); // preserved
     });
   });
 

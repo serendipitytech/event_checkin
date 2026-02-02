@@ -38,3 +38,7 @@ export const useFeatureFlag = <K extends keyof FeatureFlags>(
 export const useUndoProtectionLevel = (): UndoProtectionLevel => {
   return useFeatureFlag('undoProtectionLevel');
 };
+
+export const useEnableiPadLayout = (): boolean => {
+  return useFeatureFlag('enableiPadLayout');
+};

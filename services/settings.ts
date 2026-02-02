@@ -15,6 +15,7 @@ export type UndoProtectionLevel = 'relaxed' | 'standard' | 'strict';
 
 export type FeatureFlags = {
   undoProtectionLevel: UndoProtectionLevel;
+  enableiPadLayout: boolean;
 };
 
 export type AppSettings = {
@@ -26,6 +27,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoRefreshInterval: 5000,
   featureFlags: {
     undoProtectionLevel: 'standard',
+    enableiPadLayout: true,
   },
 };
 
@@ -148,6 +150,14 @@ export const setUndoProtectionLevel = async (
 
 export const getSettingsSync = (): AppSettings => {
   return cachedSettings ?? DEFAULT_SETTINGS;
+};
+
+export const getEnableiPadLayout = async (): Promise<boolean> => {
+  return getFeatureFlag('enableiPadLayout');
+};
+
+export const setEnableiPadLayout = async (enabled: boolean): Promise<void> => {
+  await setFeatureFlag('enableiPadLayout', enabled);
 };
 
 export const initializeSettings = async (): Promise<AppSettings> => {
