@@ -39,22 +39,37 @@ _Last updated: Feb 2026_
 
 3. **Adaptive Navigation**
    - Bottom tab bar for phone and portrait iPad
-   - Side tab bar (80px, left) for landscape iPad
-   - Automatic switching based on orientation
+   - Narrow icon-only side nav (56px) for landscape iPad **when logged in**
+   - Tabs completely hidden in landscape **when logged out** (no wasted space)
+   - Automatic switching based on orientation and auth state
 
 4. **Modal Optimization**
    - Check-in/undo modals: max-width 500px on tablet
-   - CodeRedeemModal: responsive width
+   - CodeRedeemModal: responsive width + KeyboardAvoidingView fix
    - QRCodeModal: larger padding on tablet (400px max)
 
 5. **Testing Documentation**
    - iPad test scenarios added to simulator-testing-guide.md
 
+### Key Files Added/Modified
+
+| File | Purpose |
+|------|---------|
+| `constants/responsive.ts` | Breakpoints, grid columns, spacing |
+| `hooks/useDeviceLayout.ts` | Device/orientation detection |
+| `hooks/useResponsiveValue.ts` | Responsive value helper |
+| `hooks/useModalWidth.ts` | Constrained modal widths |
+| `components/AttendeeCard.tsx` | Card/row attendee component |
+| `app/(tabs)/index.tsx` | Grid layout integration |
+| `app/(tabs)/_layout.tsx` | Adaptive navigation |
+| `components/CodeRedeemModal.tsx` | Keyboard fix |
+| `components/QRCodeModal.tsx` | Tablet styling |
+
 ### Remaining 📋
 
 - [ ] Add Admin UI toggle for iPad layout feature flag
-- [ ] Fine-tune card styling for tablet
-- [ ] Test on physical iPad devices
+- [ ] Continue testing on iPad simulator/device
+- [ ] Address any additional UX issues found during testing
 
 ---
 
@@ -320,14 +335,18 @@ Supabase Vault (code_salt - single source of truth)
 
 ## Git Status
 
-**Current Branch:** `feature/offline-mode` (clean)
+**Current Branch:** `feature/ipad-view`
 
 **Recent Commits:**
-- `f46e0be` - feat(v1.3): add offline mode core infrastructure
-- `51db29c` - docs: update status for v1.2 TestFlight release and v1.3 planning
-- `2ec6ed5` - docs(eas): clarify build profiles and TestFlight requirements
-- `6c58198` - fix(eas): add preview submit profile for auto-submit support
-- `75f60bb` - docs: add EAS build deployment guide with Keychain troubleshooting
+- `9127561` - fix(ipad): hide tabs entirely in landscape when logged out
+- `9b86f1b` - fix(ipad): address landscape UX issues
+- `89dae58` - docs: add iPad testing scenarios and update project status
+- `e8050a9` - feat(ipad): add adaptive navigation and optimize modals
+- `6c46a16` - feat(ipad): implement responsive grid layout and AttendeeCard component
+- `20f5ea6` - feat(ipad): add responsive infrastructure and enableiPadLayout feature flag
+
+**Main Branch (v1.3.0):**
+- `e2c7e38` - fix: update version to 1.3.0 in app.config.js (tagged v1.3.0)
 
 ---
 

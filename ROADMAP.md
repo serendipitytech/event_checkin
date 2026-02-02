@@ -122,17 +122,37 @@ All live testing happens in `dev` via Expo or internal TestFlight.
 **Branch:** `feature/ipad-view`
 **Target:** Nice-to-have for 2/20/2026 event
 
-**Responsive Layout:**
-- [ ] `useDeviceLayout` hook (phone / tablet-portrait / tablet-landscape)
-- [ ] Multi-column grid for attendee list (2-col portrait, 4-col landscape)
-- [ ] Constrained modal widths on larger screens
-- [ ] Inline filters for landscape mode
-- [ ] Larger touch targets for iPad usability
+**Responsive Infrastructure:** ✅ Complete
+- [x] `constants/responsive.ts` - Breakpoints, grid columns, spacing scales
+- [x] `hooks/useDeviceLayout.ts` - Device type and orientation detection
+- [x] `hooks/useResponsiveValue.ts` - Responsive value selection
+- [x] `hooks/useModalWidth.ts` - Constrained modal widths on tablet
+- [x] `enableiPadLayout` feature flag (default: true)
 
-**UX Considerations:**
-- Portrait: 2-column grid, larger cards
-- Landscape: 4-column grid, header+filters on same row
-- Tap-to-check-in may be more natural than swipe on landscape iPad
+**Multi-Column Grid Layout:** ✅ Complete
+- [x] Phone: 1 column (list view with swipe gestures)
+- [x] Tablet portrait: 2 columns (card view with tap gestures)
+- [x] Tablet landscape: 4 columns (card view with tap gestures)
+- [x] `components/AttendeeCard.tsx` - Supports row and card modes
+
+**Adaptive Navigation:** ✅ Complete
+- [x] Bottom tab bar for phone and portrait iPad
+- [x] Narrow icon-only side nav (56px) for landscape iPad when logged in
+- [x] Tabs hidden in landscape when logged out (no wasted space)
+
+**Modal Optimization:** ✅ Complete
+- [x] Check-in/undo modals: max-width 500px on tablet
+- [x] CodeRedeemModal: responsive width + KeyboardAvoidingView
+- [x] QRCodeModal: larger padding on tablet (400px max)
+
+**Testing & Documentation:** ✅ Complete
+- [x] iPad test scenarios in simulator-testing-guide.md
+- [x] Updated current-status.md
+
+**Remaining:**
+- [ ] Add Admin UI toggle for iPad layout feature flag
+- [ ] Test on physical iPad devices
+- [ ] Fine-tune any remaining UX issues from testing
 
 ### v1.4 — Testing, Analytics & Polish (Apr 2026)
 
