@@ -13,14 +13,14 @@ _Last updated: Feb 2026_
 ## Current State
 | Item | Status |
 |------|---------|
-| iOS App Store | Live (v1.1.1) |
-| TestFlight | v1.2.0 (1.0.21) - Access Codes |
+| iOS App Store | v1.3.0 (1.0.23) - Submitted for review |
+| TestFlight | v1.3.0 (1.0.23) |
 | Web (Vercel) | Stable |
 | Supabase (Prod) | Live |
 | Android | Planned |
 
-**Current Version:** 1.2.0 (in TestFlight)
-**Active Development:** v1.3 Offline Mode
+**Current Version:** 1.3.0 (submitted to App Store)
+**Active Development:** iPad view optimization (feature/ipad-view)
 
 ---
 
@@ -58,8 +58,8 @@ All live testing happens in `dev` via Expo or internal TestFlight.
 - [ ] Finalize privacy / terms links
 - [ ] Web console warning cleanup
 
-### v1.2 — Shareable Access Codes (Feb 2026) IN TESTFLIGHT
-**Status:** TestFlight v1.2.0 (1.0.21) - QR deep links verified working
+### v1.2 — Shareable Access Codes (Feb 2026) ✅ RELEASED
+**Status:** Included in v1.3.0 release - QR deep links verified working
 
 **Backend:** Complete
 - [x] Supabase Vault for centralized CODE_SALT storage
@@ -82,8 +82,8 @@ All live testing happens in `dev` via Expo or internal TestFlight.
 - [x] QR code deep links verified (`checkin://` scheme)
 - [ ] App Store release (pending QA)
 
-### v1.3 — Offline Mode + Undo UX (Feb 2026) IN PROGRESS
-**Target:** 2/20/2026 event deadline
+### v1.3 — Offline Mode + Undo UX (Feb 2026) ✅ RELEASED
+**Released:** Feb 2, 2026 | **Target:** 2/20/2026 event deadline
 
 **Existing Infrastructure:**
 - [x] Network detection via expo-network (in attendees.ts)
@@ -117,6 +117,22 @@ All live testing happens in `dev` via Expo or internal TestFlight.
 - [x] Jest infrastructure with AsyncStorage mocks
 - [x] Updated QA checklist (`docs/mvp_qa_list.md`)
 - [x] Simulator testing guide (`docs/simulator-testing-guide.md`)
+
+### v1.3.1 — iPad View Optimization (Feb 2026) IN PROGRESS
+**Branch:** `feature/ipad-view`
+**Target:** Nice-to-have for 2/20/2026 event
+
+**Responsive Layout:**
+- [ ] `useDeviceLayout` hook (phone / tablet-portrait / tablet-landscape)
+- [ ] Multi-column grid for attendee list (2-col portrait, 4-col landscape)
+- [ ] Constrained modal widths on larger screens
+- [ ] Inline filters for landscape mode
+- [ ] Larger touch targets for iPad usability
+
+**UX Considerations:**
+- Portrait: 2-column grid, larger cards
+- Landscape: 4-column grid, header+filters on same row
+- Tap-to-check-in may be more natural than swipe on landscape iPad
 
 ### v1.4 — Testing, Analytics & Polish (Apr 2026)
 
@@ -211,7 +227,8 @@ Supabase Vault
 |------------|---------|-------|
 | **v1.1.x** | Jan 2026 | Bug fixes + UI polish |
 | **v1.2** | Feb 2026 | Shareable Access Codes (in TestFlight) |
-| **v1.3** | Feb 2026 | Offline mode + Undo UX ← CURRENT |
+| **v1.3** | Feb 2026 | Offline mode + Undo UX ✅ RELEASED |
+| **v1.3.1** | Feb 2026 | iPad view optimization ← CURRENT |
 | **v1.4** | Apr 2026 | Testing infrastructure + Analytics |
 | **v1.5** | May 2026 | Android + Cross-platform |
 | **v2.0** | Summer 2026 | Anonymous event access |
