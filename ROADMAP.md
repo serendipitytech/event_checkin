@@ -14,13 +14,13 @@ _Last updated: Feb 2026_
 | Item | Status |
 |------|---------|
 | iOS App Store | Live (v1.1.1) |
-| TestFlight | Active |
+| TestFlight | v1.2.0 (1.0.21) - Access Codes |
 | Web (Vercel) | Stable |
 | Supabase (Prod) | Live |
 | Android | Planned |
 
-**Current Version:** 1.1.1
-**Active Development:** v1.2 Shareable Access Codes
+**Current Version:** 1.2.0 (in TestFlight)
+**Active Development:** v1.3 Offline Mode
 
 ---
 
@@ -58,46 +58,45 @@ All live testing happens in `dev` via Expo or internal TestFlight.
 - [ ] Finalize privacy / terms links
 - [ ] Web console warning cleanup
 
-### v1.2 — Shareable Access Codes (Feb 2026) IN PROGRESS
-**Backend (Complete):**
+### v1.2 — Shareable Access Codes (Feb 2026) IN TESTFLIGHT
+**Status:** TestFlight v1.2.0 (1.0.21) - QR deep links verified working
+
+**Backend:** Complete
 - [x] Supabase Vault for centralized CODE_SALT storage
-- [x] `hash_access_code()` RPC - hashes codes server-side using Vault
+- [x] `hash_access_code()` RPC - server-side hashing
 - [x] `get_code_salt()` RPC - restricted to service role
-- [x] `create_event_access_code()` RPC - creates codes with server-side hashing
-- [x] `list_event_access_codes()` RPC - lists codes for an event
-- [x] `revoke_event_access_code()` RPC - disables codes
-- [x] `redeem_event_code` Edge Function - validates codes using Vault salt
-- [x] `event_access_codes` table with code_hash, role, expiration, max_uses
-- [x] `event_code_redemptions` table for audit trail
+- [x] `create_event_access_code()` RPC
+- [x] `list_event_access_codes()` RPC
+- [x] `revoke_event_access_code()` RPC
+- [x] `redeem_event_code` Edge Function - validates via Vault
 
-**Frontend (Complete):**
-- [x] `services/codeManagement.ts` - create, list, revoke codes
-- [x] `services/qrCodeGeneration.ts` - QR codes and deep links
-- [x] `components/CreateAccessCodeModal.tsx` - code creation UI
-- [x] `components/AccessCodeDashboard.tsx` - view/manage codes
-- [x] `components/QRCodeModal.tsx` - QR code display with sharing
-- [x] Cryptographically secure code generation (expo-crypto)
-- [x] Deep link handling for code redemption (`app/redeem.tsx`)
-- [x] Pre-fill code modal from deep links
-
-**Testing (In Progress):**
-- [x] Code creation via app UI
-- [x] QR code generation and scanning
-- [x] Code redemption on physical device
-- [x] Code redemption on simulator
-- [ ] End-to-end testing on multiple devices
-- [ ] Edge cases (expiration, max uses, revocation)
+**Frontend:** Complete
+- [x] Code management service with crypto-secure generation
+- [x] QR code generation and deep link sharing
+- [x] CreateAccessCodeModal, AccessCodeDashboard, QRCodeModal
+- [x] Deep link route handler (`app/redeem.tsx`)
 
 **Deployment:**
-- [ ] Deploy migrations to production Supabase
-- [ ] TestFlight build with new features
-- [ ] App Store release
+- [x] Migrations deployed to Supabase
+- [x] TestFlight build submitted
+- [x] QR code deep links verified (`checkin://` scheme)
+- [ ] App Store release (pending QA)
 
-### v1.3 — Offline Mode + Android (Mar 2026)
-- [ ] Offline detection service (`services/offlineMode.ts`)
-- [ ] Extended caching layer (`services/offlineCache.ts`)
+### v1.3 — Offline Mode (Feb 2026) IN PROGRESS
+**Target:** 2/20/2026 event deadline
+
+**Existing Infrastructure:**
+- [x] Network detection via expo-network (in attendees.ts)
+- [x] Attendee caching with AsyncStorage fallback
+- [x] Realtime reconnection with exponential backoff
+- [x] Session and event persistence
+
+**To Build:**
 - [ ] Check-in queue system (`services/offlineQueue.ts`)
 - [ ] Sync manager for reconnection (`services/syncManager.ts`)
+- [ ] Offline UI indicator (`components/OfflineIndicator.tsx`)
+- [ ] Update check-in flow to queue when offline
+- [ ] Conflict resolution (server wins)
 - [ ] OfflineIndicator component for UI feedback
 - [ ] Launch app in read-only mode when offline
 - [ ] Queue check-ins locally when no connectivity
