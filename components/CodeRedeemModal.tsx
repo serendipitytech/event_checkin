@@ -4,7 +4,18 @@
  * - Exports: CodeRedeemModal
  */
 import React, { useState, useEffect } from 'react';
-import { ActivityIndicator, Alert, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { redeemEventCode } from '../services/accessCodes';
 import { useModalWidth } from '../hooks/useModalWidth';
@@ -52,7 +63,10 @@ export const CodeRedeemModal: React.FC<Props> = ({ visible, onClose, onSuccess, 
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={[styles.modal, { width: modalWidth }]}>
           <Text style={styles.title}>Enter Access Code</Text>
           <Text style={styles.subtitle}>Ask your event planner for your code.</Text>
@@ -79,7 +93,7 @@ export const CodeRedeemModal: React.FC<Props> = ({ visible, onClose, onSuccess, 
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

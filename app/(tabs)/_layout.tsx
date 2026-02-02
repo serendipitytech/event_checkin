@@ -1,21 +1,24 @@
 /**
  * Lintnotes
  * - Purpose: Tab navigator layout configuring the two primary tabs and shared tab UI styling.
- *            Supports adaptive navigation: side tabs for landscape iPad, bottom tabs otherwise.
+ *            Supports adaptive navigation: side tabs for landscape iPad (when logged in), bottom tabs otherwise.
  * - Exports: default TabsLayout (React component)
- * - Major deps: expo-router Tabs, @expo/vector-icons/Ionicons, hooks/useDeviceLayout
+ * - Major deps: expo-router Tabs, @expo/vector-icons/Ionicons, hooks/useDeviceLayout, hooks/useSupabase
  * - Side effects: None (navigation configuration only).
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 
 import { useDeviceLayout } from '../../hooks/useDeviceLayout';
+import { useSupabase } from '../../hooks/useSupabase';
 
 export default function TabsLayout() {
-  const { layout, isTablet, isLandscape } = useDeviceLayout();
+  const { isTablet, isLandscape } = useDeviceLayout();
+  const { session } = useSupabase();
 
-  // Use side navigation for landscape tablet, bottom tabs otherwise
-  const useSideNav = isTablet && isLandscape;
+  // Use side navigation only for landscape tablet when logged in
+  // When logged out, use bottom tabs (side nav wastes space and does nothing)
+  const useSideNav = isTablet && isLandscape && !!session;
 
   return (
     <Tabs
@@ -23,12 +26,13 @@ export default function TabsLayout() {
         tabBarActiveTintColor: '#f5cb08',
         tabBarInactiveTintColor: '#9c9c9c',
         tabBarPosition: useSideNav ? 'left' : 'bottom',
+        tabBarShowLabel: !useSideNav, // Hide labels in side nav (icon-only)
         tabBarStyle: useSideNav
           ? {
               backgroundColor: '#1f1f1f',
               borderRightColor: '#2b2b2b',
               borderRightWidth: 1,
-              width: 80,
+              width: 56, // Narrower icon-only side nav
               paddingTop: 20,
             }
           : {
@@ -36,12 +40,12 @@ export default function TabsLayout() {
               borderTopColor: '#2b2b2b',
             },
         tabBarLabelStyle: {
-          fontSize: useSideNav ? 10 : 11,
+          fontSize: 11,
           fontWeight: '600',
         },
         tabBarIconStyle: useSideNav
           ? {
-              marginBottom: 2,
+              marginBottom: 0,
             }
           : undefined,
         headerTintColor: '#1f1f1f',
