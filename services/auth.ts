@@ -1,7 +1,7 @@
 /**
  * Lintnotes
  * - Purpose: Supabase authentication helpers for magic link sign-in, callback processing, and deep link listeners.
- * - Exports: launchMagicLinkSignIn, handleAuthCallback, initializeDeepLinkHandling; internal parseFragment helper.
+ * - Exports: launchMagicLinkSignIn, handleAuthCallback, initializeDeepLinkHandling, addCodeLinkListener; internal parseFragment helper.
  * - Major deps: react-native Alert, expo-linking, expo-constants, services/supabase
  * - Side effects: Displays prompts/alerts, subscribes to Linking URL events, sets Supabase session when tokens present.
  */
@@ -9,6 +9,32 @@ import { Alert, Platform } from "react-native";
 import * as Linking from "expo-linking";
 import Constants from "expo-constants";
 import { getSupabaseClient } from "./supabase";
+import { parseCodeFromUrl } from "./qrCodeGeneration";
+
+export type CodeLinkPayload = {
+  code: string;
+  eventId: string | null;
+};
+
+type CodeLinkListener = (payload: CodeLinkPayload) => void;
+const codeLinkListeners = new Set<CodeLinkListener>();
+
+export function addCodeLinkListener(listener: CodeLinkListener): () => void {
+  codeLinkListeners.add(listener);
+  return () => {
+    codeLinkListeners.delete(listener);
+  };
+}
+
+function emitCodeLink(payload: CodeLinkPayload): void {
+  codeLinkListeners.forEach((listener) => {
+    try {
+      listener(payload);
+    } catch (err) {
+      console.error("Code link listener error:", err);
+    }
+  });
+}
 
 /** Parse the fragment (after #) in URLs to extract auth tokens */
 const parseFragment = (url: string): Record<string, string> => {
@@ -105,6 +131,19 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
   );
 };
 
+/** Check if URL is a code redemption link and emit event if so */
+const handleCodeRedemptionUrl = (url: string): boolean => {
+  const { code, eventId } = parseCodeFromUrl(url);
+
+  if (code) {
+    console.log("🔑 Code redemption link detected:", { code, eventId });
+    emitCodeLink({ code, eventId });
+    return true;
+  }
+
+  return false;
+};
+
 /** Handle Supabase redirect callback */
 export const handleAuthCallback = async (url: string): Promise<void> => {
   const supabase = getSupabaseClient();
@@ -153,19 +192,25 @@ export const initializeDeepLinkHandling = async (): Promise<() => void> => {
     const initialUrl = await Linking.getInitialURL();
     if (initialUrl) {
       console.log("App opened via URL:", initialUrl);
+
       if (initialUrl.includes('#access_token')) {
         await handleAuthCallback(initialUrl);
+      } else if (initialUrl.includes('code=') || initialUrl.includes('/redeem')) {
+        handleCodeRedemptionUrl(initialUrl);
       } else {
-        console.log("No auth fragment in initial URL; skipping callback handler.");
+        console.log("No auth fragment or code in initial URL; skipping callback handler.");
       }
     }
 
     const subscription = Linking.addEventListener("url", (event) => {
       console.log("Received deep link:", event.url);
+
       if (event.url?.includes('#access_token')) {
         handleAuthCallback(event.url);
+      } else if (event.url?.includes('code=') || event.url?.includes('/redeem')) {
+        handleCodeRedemptionUrl(event.url);
       } else {
-        console.log("No auth fragment in deep link; skipping callback handler.");
+        console.log("No auth fragment or code in deep link; skipping callback handler.");
       }
     });
 

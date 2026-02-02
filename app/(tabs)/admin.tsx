@@ -34,8 +34,13 @@ import { InviteUserModal } from '../../components/InviteUserModal';
 import { EventSelectorModal } from '../../components/EventSelectorModal';
 import { RequestInfoModal } from '../../components/RequestInfoModal';
 import { CodeRedeemModal } from '../../components/CodeRedeemModal';
+import { AccessCodeDashboard } from '../../components/AccessCodeDashboard';
 import type { ImportResult } from '../../services/rosterImport';
 import { deleteLocalSession, deleteMyAccount } from '../../services/account';
+import { addCodeLinkListener, type CodeLinkPayload } from '../../services/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const PENDING_CODE_KEY = '@checkin_pending_code';
 
 const AUTO_REFRESH_OPTIONS = [
   { label: 'Off', value: 0 },
@@ -76,13 +81,44 @@ export default function AdminScreen() {
   const [eventSelectorModalVisible, setEventSelectorModalVisible] = useState(false);
   const [requestInfoModalVisible, setRequestInfoModalVisible] = useState(false);
   const [redeemModalVisible, setRedeemModalVisible] = useState(false);
+  const [accessCodeDashboardVisible, setAccessCodeDashboardVisible] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [pendingCode, setPendingCode] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const remove = addAutoRefreshListener((interval) => {
       setAutoRefreshIntervalState(interval);
     });
     return remove;
+  }, []);
+
+  // Listen for code link deep links
+  useEffect(() => {
+    const remove = addCodeLinkListener((payload: CodeLinkPayload) => {
+      setPendingCode(payload.code);
+      setRedeemModalVisible(true);
+    });
+    return remove;
+  }, []);
+
+  // Check for pending code from deep link route on mount
+  useEffect(() => {
+    const checkPendingCode = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(PENDING_CODE_KEY);
+        if (stored) {
+          const { code } = JSON.parse(stored) as { code: string; eventId: string | null };
+          await AsyncStorage.removeItem(PENDING_CODE_KEY);
+          console.log('Found pending code from deep link:', code);
+          setPendingCode(code);
+          setRedeemModalVisible(true);
+        }
+      } catch (err) {
+        console.error('Failed to check pending code:', err);
+      }
+    };
+
+    checkPendingCode();
   }, []);
 
   // Determine user role from event (raw) or permissions helper; log on mount/update
@@ -302,14 +338,19 @@ export default function AdminScreen() {
         {/* Redeem Code Modal */}
         <CodeRedeemModal
           visible={redeemModalVisible}
-          onClose={() => setRedeemModalVisible(false)}
+          onClose={() => {
+            setRedeemModalVisible(false);
+            setPendingCode(undefined);
+          }}
           onSuccess={({ eventId }) => {
             setSelectedEventId(eventId);
+            setPendingCode(undefined);
             void (async () => {
               await refreshEvents();
               Alert.alert('Joined Event', 'Access granted. You can now check in attendees.');
             })();
           }}
+          initialCode={pendingCode}
         />
       </View>
     );
@@ -377,6 +418,17 @@ export default function AdminScreen() {
                 label="Invite User"
                 variant="primary"
                 onPress={() => setInviteUserModalVisible(true)}
+              />
+            </View>
+          )}
+
+          {/* Access Codes Button - Manager/Admin only */}
+          {(userRole === 'manager' || userRole === 'admin') && selectedEvent && (
+            <View style={styles.accessCodeButtonContainer}>
+              <ActionButton
+                label="Manage Access Codes"
+                variant="secondary"
+                onPress={() => setAccessCodeDashboardVisible(true)}
               />
             </View>
           )}
@@ -604,6 +656,13 @@ export default function AdminScreen() {
           onClose={() => setEventSelectorModalVisible(false)}
           onSelectEvent={handleEventSelection}
         />
+
+        <AccessCodeDashboard
+          visible={accessCodeDashboardVisible}
+          eventId={selectedEvent?.eventId || ''}
+          eventName={selectedEvent?.eventName}
+          onClose={() => setAccessCodeDashboardVisible(false)}
+        />
       </ScrollView>
       
       {/* Sign Out Button - Pinned to bottom */}
@@ -774,6 +833,10 @@ const styles = StyleSheet.create({
   },
   inviteButtonContainer: {
     marginTop: 16,
+    marginBottom: 8
+  },
+  accessCodeButtonContainer: {
+    marginTop: 8,
     marginBottom: 8
   },
   floatingButtonContainer: {

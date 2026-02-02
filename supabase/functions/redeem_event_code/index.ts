@@ -4,11 +4,31 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const CODE_SALT = Deno.env.get("CODE_SALT")!;
 
 const admin = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   global: { headers: { Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } },
 });
+
+// Cache the salt to avoid repeated Vault lookups (cleared on function cold start)
+let cachedSalt: string | null = null;
+
+async function getCodeSalt(): Promise<string> {
+  if (cachedSalt) {
+    return cachedSalt;
+  }
+
+  // Fetch salt from Vault via RPC - single source of truth
+  const { data, error } = await admin.rpc('get_code_salt');
+
+  if (error || !data) {
+    console.error('Failed to fetch code_salt from Vault:', error);
+    throw new Error('CODE_SALT not configured in Vault');
+  }
+
+  cachedSalt = data as string;
+  console.log('Loaded code_salt from Vault');
+  return cachedSalt;
+}
 
 async function sha256Hex(input: string): Promise<string> {
   const enc = new TextEncoder();
@@ -36,8 +56,11 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Missing code' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
+    // Get salt from Vault (cached after first call)
+    const codeSalt = await getCodeSalt();
+
     const normalized = rawCode.toUpperCase().replace(/\s+/g, '');
-    const codeHash = await sha256Hex(`${CODE_SALT}|${normalized}`);
+    const codeHash = await sha256Hex(`${codeSalt}|${normalized}`);
 
     // Resolve current user
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

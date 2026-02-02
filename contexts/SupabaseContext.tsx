@@ -234,7 +234,14 @@ export const SupabaseProvider = ({ children }: { children: ReactNode }) => {
       await launchMagicLinkSignIn();
     },
     signOut: async () => {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch (error) {
+        console.error('Sign out error:', error);
+      }
+      // Explicitly clear state regardless of signOut result
+      // The onAuthStateChange listener should also fire, but this ensures immediate UI update
+      setSession(null);
       setEvents([]);
       setSelectedEventId(null);
     }

@@ -3,7 +3,7 @@
  * - Purpose: Modal UI for entering an event access code and redeeming it.
  * - Exports: CodeRedeemModal
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ActivityIndicator, Alert, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { redeemEventCode } from '../services/accessCodes';
@@ -12,11 +12,18 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onSuccess: (args: { eventId: string; role: string }) => void;
+  initialCode?: string;
 };
 
-export const CodeRedeemModal: React.FC<Props> = ({ visible, onClose, onSuccess }) => {
-  const [code, setCode] = useState('');
+export const CodeRedeemModal: React.FC<Props> = ({ visible, onClose, onSuccess, initialCode }) => {
+  const [code, setCode] = useState(initialCode ?? '');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (initialCode && visible) {
+      setCode(initialCode);
+    }
+  }, [initialCode, visible]);
 
   const handleRedeem = async () => {
     const trimmed = code.trim();

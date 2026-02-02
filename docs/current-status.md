@@ -1,119 +1,189 @@
 # Current Project Status
 
-## ✅ **COMPLETED: Supabase Authentication System**
+_Last updated: Feb 2026_
 
-### Working Features
-- **Magic Link Authentication** with Supabase v2
-- **Hash Fragment Token Parsing** (#access_token=...&refresh_token=...)
-- **Deep Link Handling** with tunnel URL support
-- **Auth Callback Screen** with loading UI and auto-redirect
-- **Centralized Configuration** with dynamic redirect URLs
-- **Comprehensive Error Handling** and debugging utilities
+## Production Status
 
-### Key Files Implemented
-- `services/auth.ts` - Complete magic link authentication flow
-- `app/auth/callback.tsx` - Auth callback screen for Expo Router
-- `config/env.ts` - Centralized environment configuration
-- `utils/verifyAuthUrl.ts` - URL generation verification
-- `services/supabase.ts` - Supabase client with v2 configuration
+| Platform | Status | Version |
+|----------|--------|---------|
+| iOS App Store | Live | v1.1.1 |
+| TestFlight | Active | v1.1.1 |
+| Web (Vercel) | Stable | - |
+| Supabase (Prod) | Live | - |
+| Android | Planned | - |
 
-### Documentation
-- `docs/supabase-dashboard-setup.md` - Complete Supabase configuration guide
-- `docs/development-setup.md` - Quick start guide for developers
-- `docs/troubleshooting-magic-links.md` - Auth troubleshooting guide
-- Updated `README.md` with current architecture
+## Active Development: v1.2 Shareable Access Codes
 
-## ✅ **COMPLETED: Event Management & User Invitations**
+### What's New
+Managers can now generate shareable access codes that grant event access without email invitations. Codes can be shared via QR code or deep link, making it easy to onboard checker staff quickly.
 
-### Working Features
-- **Event Selection Interface** with proper modal UI
-- **User Invitation System** with magic link integration
-- **Role-Based Access Control** with permission enforcement
-- **Admin Screen UX Polish** with dynamic sign in/out
-- **Demo Data Seeding** with multiple events for testing
+### Implementation Status
 
-### Key Files Implemented
-- `components/EventSelectorModal.tsx` - Clean event selection interface
-- `components/InviteUserModal.tsx` - User invitation with role selection
-- `services/invitations.ts` - Complete invitation flow with user creation
-- `docs/generate_demo_data.sql` - Demo data with multiple events
-- Updated `app/(tabs)/admin.tsx` with improved UX
+**Backend - COMPLETE:**
+- Supabase Vault stores CODE_SALT (single source of truth)
+- `hash_access_code()` RPC for server-side hashing
+- `get_code_salt()` RPC for edge function access
+- `create_event_access_code()` RPC for code creation
+- `list_event_access_codes()` RPC for listing codes
+- `revoke_event_access_code()` RPC for disabling codes
+- `redeem_event_code` Edge Function for validation
+- Database tables: `event_access_codes`, `event_code_redemptions`
 
-## 🚧 **NEXT PRIORITIES: Feature Development**
+**Frontend - COMPLETE:**
+- Code management service with crypto-secure generation
+- QR code generation and deep link sharing
+- CreateAccessCodeModal for managers
+- AccessCodeDashboard for viewing/managing codes
+- QRCodeModal for displaying shareable QR codes
+- Deep link route (`/redeem`) for code pre-fill
 
-### 1. Real-time Synchronization
-- Live attendee check-in updates
-- Multi-device collaboration
-- Conflict resolution
+**Testing - IN PROGRESS:**
+- [x] Code creation via app UI
+- [x] QR code scanning on physical device
+- [x] Manual code entry
+- [x] Deep link redemption
+- [ ] Edge case testing (expiration, limits, revocation)
+- [ ] Multi-device testing
 
-### 2. Roster Import System
-- CSV file import
-- Google Sheets integration
-- Data validation and error handling
+**Remaining for Release:**
+- [ ] Deploy migrations to production Supabase
+- [ ] TestFlight build
+- [ ] App Store submission
 
-### 3. Advanced Event Management
-- Event settings and configuration
-- Organization management
-- Event deletion and cleanup
+---
 
-### 4. User Management
-- Role updates and management
-- User removal from events
-- Bulk user operations
+## Completed Features
 
-## 🔄 **Git Status**
+### Authentication & Security
+- Magic Link Authentication with Supabase v2
+- Hash Fragment Token Parsing (#access_token=...&refresh_token=...)
+- Deep Link Handling with tunnel URL support
+- Auth Callback Screen with loading UI and auto-redirect
+- Session Persistence with AsyncStorage
+- Centralized Configuration with dynamic redirect URLs
 
-### Current Branch: `feature/event-management`
-Ready for next phase of development
+### Event Management & User Invitations
+- Event Selection Interface with proper modal UI
+- User Invitation System with magic link integration
+- Role-Based Access Control with permission enforcement
+- Admin Screen UX Polish with dynamic sign in/out
 
-### Pushed to Dev: `dev` branch
-Complete working authentication system with documentation
+### Check-In Workflow
+- Attendee list with search and filter
+- Manual and bulk check-ins (group/table)
+- Real-time sync across devices
+- Auto-refresh at configurable intervals
 
-### Previous Branch: `feature/supabase-integration`
-Successfully merged to dev with all auth features
+### Roster Import
+- CSV file import with column mapping
+- Google Sheets integration via URL
+- Bulk upsert with error reporting
 
-## 🧪 **Testing Status**
+### Access Codes (v1.2 - NEW)
+- Cryptographically secure code generation
+- Server-side hashing with Vault-stored salt
+- QR code generation and sharing
+- Deep link support for easy redemption
+- Code expiration and usage limits
+- Revocation capability
+- Audit trail for redemptions
 
-### Authentication Flow ✅
-1. Magic link generation with tunnel URLs
-2. Deep link handling with hash fragment parsing
-3. Session establishment with `setSession()`
-4. Auth callback screen with loading UI
-5. Automatic redirect to home screen
+---
 
-### Event Management Flow ✅
-1. Event selection modal with proper UI
-2. User invitation with role-based permissions
-3. Magic link invitations for new users
-4. Dynamic sign in/out button behavior
-5. Demo data with multiple events for testing
+## Architecture Highlights
 
-### Development Environment ✅
-- Expo development server with tunnel support
-- Supabase configuration with proper redirect URLs
-- Environment variables setup
-- Comprehensive logging and debugging
-- Demo data seeding with `generate_demo_data.sql`
+### Access Code Salt Management
+```
+Supabase Vault (code_salt)
+        │
+        ├── hash_access_code() RPC
+        │       └── Used by create_event_access_code()
+        │
+        └── get_code_salt() RPC
+                └── Used by redeem_event_code Edge Function
+```
 
-## 📱 **Ready for Development**
+This ensures the salt is never duplicated or out of sync.
 
-The authentication and event management foundation is solid and ready for building advanced features on top of it. The next development phase can focus on:
+### New Files (v1.2)
+| File | Purpose |
+|------|---------|
+| `services/codeManagement.ts` | Code CRUD operations |
+| `services/qrCodeGeneration.ts` | QR and deep link generation |
+| `components/CreateAccessCodeModal.tsx` | Code creation UI |
+| `components/AccessCodeDashboard.tsx` | Code management UI |
+| `components/QRCodeModal.tsx` | QR display with sharing |
+| `app/redeem.tsx` | Deep link route handler |
 
-1. **Real-time Features** - Add collaborative functionality and live updates
-2. **Data Import** - Build roster management tools and CSV/Excel import
-3. **Advanced User Management** - Role updates, bulk operations, user removal
-4. **Event Configuration** - Settings, organization management, event cleanup
+### Database Migrations (v1.2)
+| Migration | Purpose |
+|-----------|---------|
+| `20260201_create_access_code_rpc.sql` | Initial RPC functions |
+| `20260202_fix_code_hashing.sql` | Server-side hashing |
+| `20260203_use_vault_for_salt.sql` | Vault integration |
+| `20260204_get_code_salt_rpc.sql` | RPC for edge function |
 
-## 🎯 **Success Metrics**
+---
 
-- ✅ Magic link authentication works on physical devices
-- ✅ Deep links properly route through Expo Router
-- ✅ Session persistence across app restarts
-- ✅ Event selection with clean modal interface
-- ✅ User invitation system with role-based permissions
-- ✅ Dynamic sign in/out button behavior
-- ✅ Demo data seeding for testing multiple events
-- ✅ Comprehensive error handling and logging
-- ✅ Complete documentation for setup and troubleshooting
+## Git Status
 
-The project now has a solid authentication and event management foundation ready for advanced feature development! 🚀
+**Current Branch:** `main`
+
+**Modified Files:**
+- `ROADMAP.md` - Updated with v1.2 progress
+- `docs/current-status.md` - This file
+
+**New Files (uncommitted):**
+- `services/codeManagement.ts`
+- `services/qrCodeGeneration.ts`
+- `components/CreateAccessCodeModal.tsx`
+- `components/AccessCodeDashboard.tsx`
+- `components/QRCodeModal.tsx`
+- `app/redeem.tsx`
+- `supabase/migrations/20260201_*.sql`
+- `supabase/migrations/20260202_*.sql`
+- `supabase/migrations/20260203_*.sql`
+- `supabase/migrations/20260204_*.sql`
+
+---
+
+## Next Milestones
+
+| Version | Target | Focus |
+|---------|--------|-------|
+| v1.2 | Feb 2026 | Shareable Access Codes (current) |
+| v1.3 | Mar 2026 | Offline mode + Android |
+| v1.4 | Apr 2026 | Custom branding + Analytics |
+| v2.0 | Summer 2026 | Anonymous event access |
+
+---
+
+## Testing Checklist for v1.2
+
+Before release, verify:
+
+### Code Creation
+- [ ] Manager can access "Manage Access Codes" from Admin tab
+- [ ] Code generation produces valid 8-character code
+- [ ] Role selection (Checker/Manager) works
+- [ ] Expiration options work correctly
+- [ ] Max uses limit can be set
+- [ ] Note field saves properly
+- [ ] Code displayed once with copy buttons
+- [ ] QR code modal displays correctly
+
+### Code Redemption
+- [ ] Manual code entry works
+- [ ] QR code scanning works on iOS
+- [ ] Deep link opens app and pre-fills code
+- [ ] User gains correct role after redemption
+- [ ] Event appears in user's event list
+- [ ] Expired codes are rejected
+- [ ] Revoked codes are rejected
+- [ ] Max uses limit is enforced
+
+### Code Management
+- [ ] Dashboard shows all codes for event
+- [ ] Active/inactive codes separated
+- [ ] Revoke button disables code
+- [ ] Pull-to-refresh updates list
