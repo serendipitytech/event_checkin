@@ -18,7 +18,6 @@ import {
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   FlatList,
   ListRenderItem,
   Modal,
@@ -37,7 +36,6 @@ import {
   NativeStackNavigationProp
 } from '@react-navigation/native-stack';
 import { useNavigation } from 'expo-router';
-import { Swipeable } from 'react-native-gesture-handler';
 
 import {
   Attendee,
@@ -59,7 +57,11 @@ import ActionButton from '../../components/ActionButton';
 import { RequestInfoModal } from '../../components/RequestInfoModal';
 import { CodeRedeemModal } from '../../components/CodeRedeemModal';
 import { OfflineIndicator } from '../../components/OfflineIndicator';
+import { AttendeeCard, type AttendeeAction } from '../../components/AttendeeCard';
 import { useUndoProtectionLevel } from '../../hooks/useSettings';
+import { useDeviceLayout } from '../../hooks/useDeviceLayout';
+import { useModalWidth } from '../../hooks/useModalWidth';
+import { CARD_DIMENSIONS } from '../../constants/responsive';
 
 type CheckInStatus = 'pending' | 'checked-in';
 const segments: CheckInStatus[] = ['pending', 'checked-in'];
@@ -103,6 +105,8 @@ export default function CheckInScreen() {
   } = useSupabase();
   const { canToggleCheckins, canViewAttendees } = usePermissions();
   const undoProtectionLevel = useUndoProtectionLevel();
+  const { columns, isTablet, layout } = useDeviceLayout();
+  const modalWidth = useModalWidth();
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [activeStatus, setActiveStatus] = useState<CheckInStatus>('pending');
   const [searchTerm, setSearchTerm] = useState('');
@@ -450,142 +454,28 @@ export default function CheckInScreen() {
     [sortKey]
   );
 
-  const renderItem = useCallback<ListRenderItem<Attendee>>(
-    ({ item }) => {
-      let swipeRef: Swipeable | null = null;
-      const isPending = !item.checkedIn;
-      const groupLabel = item.groupName || 'No group';
-      const tableLabel = item.tableNumber || '—';
-      const ticketLabel = item.ticketType || '—';
-      const viewingCheckedIn = activeStatus === 'checked-in';
+  // Determine display mode: card for tablet grid, row for phone list
+  const displayMode = columns > 1 ? 'card' : 'row';
 
-      const rowContent = (
-        <View
-          style={[
-            styles.row,
-            !isPending && viewingCheckedIn && styles.rowCheckedInView
-          ]}
-        >
-          <View style={styles.rowInfo}>
-            <Text style={styles.rowName}>{item.attendeeName}</Text>
-            <View style={styles.rowMetaContainer}>
-              <Text style={styles.rowMeta}>{`${groupLabel} • Table ${tableLabel} • ${ticketLabel}`}</Text>
-              {!isPending && viewingCheckedIn && undoProtectionLevel === 'standard' && (
-                <Text style={styles.holdToUndoHint}>Hold to undo</Text>
-              )}
-            </View>
-          </View>
-          <View style={[styles.statusPill, isPending ? styles.statusPending : styles.statusChecked]}>
-            <Text style={styles.statusPillLabel}>{isPending ? 'Pending' : 'Checked'}</Text>
-          </View>
-        </View>
-      );
-
-      // For pending attendees: use swipe gesture
-      if (isPending) {
-        return (
-          <Swipeable
-            ref={(ref) => {
-              swipeRef = ref;
-            }}
-            friction={2}
-            leftThreshold={72}
-            overshootLeft={false}
-            renderLeftActions={() => (
-              <View style={[styles.swipeAction, { backgroundColor: '#27ae60' }]}>
-                <Text style={styles.swipeActionLabel}>Check In</Text>
-              </View>
-            )}
-            onSwipeableLeftOpen={() =>
-              openConfirmation(item, 'check-in', 'swipe', () => swipeRef?.close())
-            }
-          >
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => {
-                const now = Date.now();
-                if (lastTapRef.current && lastTapRef.current.id === item.id && now - lastTapRef.current.timestamp < 400) {
-                  lastTapRef.current = null;
-                  openConfirmation(item, 'check-in', 'tap', () => swipeRef?.close());
-                } else {
-                  lastTapRef.current = { id: item.id, timestamp: now };
-                }
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`${item.attendeeName}. Group ${groupLabel}. Table ${tableLabel}. Ticket ${ticketLabel}. Pending.`}
-            >
-              {rowContent}
-            </TouchableOpacity>
-          </Swipeable>
-        );
-      }
-
-      // For checked-in attendees: behavior depends on protection level
-      if (undoProtectionLevel === 'relaxed') {
-        // Relaxed: same swipe behavior as before
-        return (
-          <Swipeable
-            ref={(ref) => {
-              swipeRef = ref;
-            }}
-            friction={2}
-            leftThreshold={72}
-            overshootLeft={false}
-            renderLeftActions={() => (
-              <View style={[styles.swipeAction, { backgroundColor: '#c0392b' }]}>
-                <Text style={styles.swipeActionLabel}>Undo</Text>
-              </View>
-            )}
-            onSwipeableLeftOpen={() =>
-              openConfirmation(item, 'undo', 'swipe', () => swipeRef?.close())
-            }
-          >
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => {
-                const now = Date.now();
-                if (lastTapRef.current && lastTapRef.current.id === item.id && now - lastTapRef.current.timestamp < 400) {
-                  lastTapRef.current = null;
-                  openConfirmation(item, 'undo', 'tap', () => swipeRef?.close());
-                } else {
-                  lastTapRef.current = { id: item.id, timestamp: now };
-                }
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`${item.attendeeName}. Group ${groupLabel}. Table ${tableLabel}. Ticket ${ticketLabel}. Checked in.`}
-            >
-              {rowContent}
-            </TouchableOpacity>
-          </Swipeable>
-        );
-      }
-
-      // Standard/Strict: hold to undo (no swipe), double-tap fallback
-      return (
-        <TouchableOpacity
-          activeOpacity={0.8}
-          delayLongPress={800}
-          onLongPress={() => {
-            openConfirmation(item, 'undo', 'tap');
-          }}
-          onPress={() => {
-            const now = Date.now();
-            if (lastTapRef.current && lastTapRef.current.id === item.id && now - lastTapRef.current.timestamp < 400) {
-              lastTapRef.current = null;
-              openConfirmation(item, 'undo', 'tap');
-            } else {
-              lastTapRef.current = { id: item.id, timestamp: now };
-            }
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={`${item.attendeeName}. Group ${groupLabel}. Table ${tableLabel}. Ticket ${ticketLabel}. Checked in. Hold to undo.`}
-          accessibilityHint="Hold for 0.8 seconds to undo check-in"
-        >
-          {rowContent}
-        </TouchableOpacity>
-      );
+  const handleAttendeeAction = useCallback(
+    (attendee: Attendee, action: AttendeeAction, origin: 'tap' | 'swipe') => {
+      openConfirmation(attendee, action, origin);
     },
-    [openConfirmation, activeStatus, undoProtectionLevel]
+    [openConfirmation]
+  );
+
+  const renderItem = useCallback<ListRenderItem<Attendee>>(
+    ({ item }) => (
+      <AttendeeCard
+        attendee={item}
+        mode={displayMode}
+        isViewingCheckedIn={activeStatus === 'checked-in'}
+        undoProtectionLevel={undoProtectionLevel}
+        onAction={handleAttendeeAction}
+        lastTapRef={lastTapRef}
+      />
+    ),
+    [displayMode, activeStatus, undoProtectionLevel, handleAttendeeAction]
   );
 
   const isCheckedInTab = activeStatus === 'checked-in';
@@ -843,10 +733,16 @@ export default function CheckInScreen() {
       <OfflineIndicator />
       <View style={styles.filtersOuter}>{renderFilters()}</View>
       <FlatList
+        key={`attendee-list-${columns}`}
         data={filteredAttendees}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
+        numColumns={columns}
+        contentContainerStyle={[
+          styles.listContent,
+          columns > 1 && styles.gridContent,
+        ]}
+        columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -863,7 +759,7 @@ export default function CheckInScreen() {
             <Text style={styles.emptySubtitle}>Adjust your filters or try another list.</Text>
           </View>
         }
-        ItemSeparatorComponent={() => <View style={styles.itemDivider} />}
+        ItemSeparatorComponent={columns === 1 ? () => <View style={styles.itemDivider} /> : undefined}
         ListFooterComponent={<View style={styles.footerSpacer} />}
       />
 
@@ -875,7 +771,7 @@ export default function CheckInScreen() {
       >
         <View style={styles.modalBackdrop}>
           {pendingModal && pendingModal.action === 'check-in' && (
-            <View style={styles.modalCard}>
+            <View style={[styles.modalCard, { width: modalWidth }]}>
               <Text style={styles.modalTitle}>Confirm Check-In</Text>
               <View style={styles.modalContent}>
                 <Text style={styles.modalName}>{pendingModal.attendee.attendeeName}</Text>
@@ -915,7 +811,7 @@ export default function CheckInScreen() {
             </View>
           )}
           {pendingModal && pendingModal.action === 'undo' && (
-            <View style={styles.modalCard}>
+            <View style={[styles.modalCard, { width: modalWidth }]}>
               <Text style={styles.modalTitleUndo}>Return to Pending</Text>
               <View style={styles.modalContent}>
                 <Text style={styles.modalNameUndo}>{pendingModal.attendee.attendeeName}</Text>
@@ -954,7 +850,7 @@ export default function CheckInScreen() {
       >
         <View style={styles.modalBackdrop}>
           {groupPrompt && (
-            <View style={styles.modalCard}>
+            <View style={[styles.modalCard, { width: modalWidth }]}>
               <Text style={styles.modalTitle}>Check In Multiple</Text>
               <View style={styles.modalContent}>
                 <Text style={styles.modalName}>{groupPrompt.attendeeName}</Text>
@@ -1183,6 +1079,12 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 24
   },
+  gridContent: {
+    padding: CARD_DIMENSIONS.gap.phone,
+  },
+  gridRow: {
+    justifyContent: 'flex-start',
+  },
   segmentContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between'
@@ -1379,7 +1281,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24
   },
   modalCard: {
-    width: Dimensions.get('window').width - 48,
     backgroundColor: '#ffffff',
     borderRadius: 18,
     paddingHorizontal: 24,
