@@ -13,6 +13,7 @@ import { View, Text, StyleSheet, SafeAreaView, Platform, AppState } from 'react-
 
 import { SupabaseProvider } from '../contexts/SupabaseContext';
 import { validateEnv } from '../src/utils/validateEnv';
+import { initSyncManager } from '../services/syncManager';
 
 // Validate environment variables on module load
 validateEnv();
@@ -95,7 +96,23 @@ const styles = StyleSheet.create({
 
 export default function RootLayout() {
   useEffect(() => {
-    // Place global side effects here such as warm-up fetches or font loading.
+    // Initialize the sync manager for offline queue processing
+    let cleanup: (() => void) | undefined;
+
+    const initOffline = async () => {
+      try {
+        cleanup = await initSyncManager();
+        console.log('🔄 Sync manager initialized');
+      } catch (error) {
+        console.error('Failed to initialize sync manager:', error);
+      }
+    };
+
+    initOffline();
+
+    return () => {
+      cleanup?.();
+    };
   }, []);
 
   const hideBanner =

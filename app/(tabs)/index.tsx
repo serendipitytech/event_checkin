@@ -58,6 +58,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import ActionButton from '../../components/ActionButton';
 import { RequestInfoModal } from '../../components/RequestInfoModal';
 import { CodeRedeemModal } from '../../components/CodeRedeemModal';
+import { OfflineIndicator } from '../../components/OfflineIndicator';
 
 type CheckInStatus = 'pending' | 'checked-in';
 const segments: CheckInStatus[] = ['pending', 'checked-in'];
@@ -341,13 +342,21 @@ export default function CheckInScreen() {
       }
 
       try {
-        await toggleCheckin(attendee.id, makeCheckedIn);
+        const result = await toggleCheckin(attendee.id, makeCheckedIn, selectedEvent?.eventId);
+
+        if (!result.success) {
+          setError(result.error ?? 'Unable to update attendee.');
+          Alert.alert('Update failed', result.error ?? 'Please try again.');
+          return;
+        }
+
+        // Update local state optimistically
         setError(null);
         setAttendees((prev) =>
           prev.map((existing) =>
             existing.id === attendee.id
-              ? { 
-                  ...existing, 
+              ? {
+                  ...existing,
                   checkedIn: makeCheckedIn,
                   checkedInAt: makeCheckedIn ? new Date().toISOString() : null,
                   checkedInBy: makeCheckedIn ? 'current-user' : null
@@ -355,12 +364,18 @@ export default function CheckInScreen() {
               : existing
           )
         );
+
+        // Show feedback if queued for offline sync
+        if (result.queued) {
+          // Don't show alert - the OfflineIndicator will show pending count
+          console.log(`Check-in queued for offline sync: ${attendee.attendeeName}`);
+        }
       } catch (err) {
         setError('Unable to update attendee.');
         Alert.alert('Update failed', 'Please try again.');
       }
     },
-    [canToggleCheckins]
+    [canToggleCheckins, selectedEvent?.eventId]
   );
 
   const handleGroupAction = useCallback(
@@ -382,12 +397,24 @@ export default function CheckInScreen() {
       if (!targets.length) return;
 
       try {
-        await Promise.all(targets.map((target) => toggleCheckin(target.id, true)));
+        const results = await Promise.all(
+          targets.map((target) => toggleCheckin(target.id, true, selectedEvent?.eventId))
+        );
+
+        const anyFailed = results.some((r) => !r.success);
+        const anyQueued = results.some((r) => r.queued);
+
+        if (anyFailed) {
+          setError('Some check-ins may not have completed.');
+        } else {
+          setError(null);
+        }
+
         setAttendees((prev) =>
           prev.map((existing) =>
             targets.some((target) => target.id === existing.id)
-              ? { 
-                  ...existing, 
+              ? {
+                  ...existing,
                   checkedIn: true,
                   checkedInAt: new Date().toISOString(),
                   checkedInBy: 'current-user'
@@ -395,14 +422,18 @@ export default function CheckInScreen() {
               : existing
           )
         );
-        setError(null);
+
+        if (anyQueued) {
+          console.log(`Group check-in queued for offline sync`);
+        }
+
         await loadAttendees(false, { silent: true });
       } catch (err) {
         setError('Unable to check in group.');
         Alert.alert('Group check-in failed', 'Please try again.');
       }
     },
-    [attendees, loadAttendees, canToggleCheckins]
+    [attendees, loadAttendees, canToggleCheckins, selectedEvent?.eventId]
   );
 
   const toggleSort = useCallback(
@@ -709,6 +740,7 @@ export default function CheckInScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+      <OfflineIndicator />
       <View style={styles.filtersOuter}>{renderFilters()}</View>
       <FlatList
         data={filteredAttendees}

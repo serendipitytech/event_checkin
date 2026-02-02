@@ -13,6 +13,7 @@ import * as Network from 'expo-network';
 
 import { getSupabaseClient } from './supabase';
 import { subscribeToAttendees as subscribeToAttendeesRealtime } from './realtime';
+import { queueCheckIn, hasPendingCheckIn } from './offlineQueue';
 
 // Storage key prefix for cached attendees
 const ATTENDEES_CACHE_PREFIX = '@checkin_attendees_';
@@ -206,10 +207,34 @@ export const subscribeAttendees = (
   );
 };
 
+export type ToggleCheckinResult = {
+  success: boolean;
+  queued: boolean;
+  error?: string;
+};
+
 export const toggleCheckin = async (
   attendeeId: string,
-  checkedIn: boolean
-): Promise<void> => {
+  checkedIn: boolean,
+  eventId?: string
+): Promise<ToggleCheckinResult> => {
+  // Check network connectivity
+  const networkState = await Network.getNetworkStateAsync();
+  const isOnline = networkState.isConnected && networkState.isInternetReachable;
+
+  // If offline and we have an eventId, queue the operation
+  if (!isOnline && eventId) {
+    console.log(`📴 Offline: queuing check-in for attendee ${attendeeId}`);
+    const result = await queueCheckIn(attendeeId, eventId, checkedIn);
+
+    if (result.success) {
+      return { success: true, queued: true };
+    } else {
+      return { success: false, queued: false, error: result.error };
+    }
+  }
+
+  // Online - perform the check-in directly
   const supabase = getSupabaseClient();
   const { error } = await supabase.rpc('toggle_checkin', {
     p_attendee_id: attendeeId,
@@ -217,8 +242,29 @@ export const toggleCheckin = async (
   });
 
   if (error) {
-    throw error;
+    // If online request fails, try to queue if we have eventId
+    if (eventId) {
+      console.log(`⚠️ Online check-in failed, queuing for retry: ${error.message}`);
+      const queueResult = await queueCheckIn(attendeeId, eventId, checkedIn);
+      if (queueResult.success) {
+        return { success: true, queued: true };
+      }
+    }
+
+    return { success: false, queued: false, error: error.message };
   }
+
+  return { success: true, queued: false };
+};
+
+/**
+ * Check if an attendee has a pending offline check-in
+ */
+export const getAttendeeOfflineStatus = async (
+  attendeeId: string,
+  eventId: string
+): Promise<{ pending: boolean; checkedIn?: boolean }> => {
+  return hasPendingCheckIn(attendeeId, eventId);
 };
 
 export const resetAllCheckins = async (eventId: string): Promise<void> => {
