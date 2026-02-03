@@ -39,8 +39,9 @@ import type { ImportResult } from '../../services/rosterImport';
 import { deleteLocalSession, deleteMyAccount } from '../../services/account';
 import { addCodeLinkListener, type CodeLinkPayload } from '../../services/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useUndoProtectionLevel } from '../../hooks/useSettings';
-import { setUndoProtectionLevel, type UndoProtectionLevel } from '../../services/settings';
+import { useUndoProtectionLevel, useEnableiPadLayout } from '../../hooks/useSettings';
+import { setUndoProtectionLevel, setEnableiPadLayout, type UndoProtectionLevel } from '../../services/settings';
+import { useDeviceLayout } from '../../hooks/useDeviceLayout';
 
 const PENDING_CODE_KEY = '@checkin_pending_code';
 
@@ -87,6 +88,8 @@ export default function AdminScreen() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [pendingCode, setPendingCode] = useState<string | undefined>(undefined);
   const undoProtectionLevel = useUndoProtectionLevel();
+  const enableiPadLayout = useEnableiPadLayout();
+  const { isTablet, layout } = useDeviceLayout();
 
   useEffect(() => {
     const remove = addAutoRefreshListener((interval) => {
@@ -392,6 +395,66 @@ export default function AdminScreen() {
                 </TouchableOpacity>
               );
             })}
+          </View>
+        </View>
+
+        {/* Display Settings - Available to all users */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Display Settings</Text>
+          <Text style={styles.cardSubtitle}>
+            Choose how the attendee list is displayed on larger screens.
+          </Text>
+          <View style={styles.displaySettingsOptions}>
+            <TouchableOpacity
+              onPress={() => void setEnableiPadLayout(false)}
+              style={[
+                styles.displaySettingsOption,
+                !enableiPadLayout && styles.displaySettingsOptionActive
+              ]}
+              activeOpacity={0.8}
+            >
+              <View style={styles.displaySettingsOptionHeader}>
+                <Text style={[
+                  styles.displaySettingsOptionTitle,
+                  !enableiPadLayout && styles.displaySettingsOptionTitleActive
+                ]}>
+                  Classic List
+                </Text>
+              </View>
+              <Text style={[
+                styles.displaySettingsOptionDesc,
+                !enableiPadLayout && styles.displaySettingsOptionDescActive
+              ]}>
+                Single column with swipe gestures
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => void setEnableiPadLayout(true)}
+              style={[
+                styles.displaySettingsOption,
+                enableiPadLayout && styles.displaySettingsOptionActive
+              ]}
+              activeOpacity={0.8}
+            >
+              <View style={styles.displaySettingsOptionHeader}>
+                <Text style={[
+                  styles.displaySettingsOptionTitle,
+                  enableiPadLayout && styles.displaySettingsOptionTitleActive
+                ]}>
+                  Card Grid
+                </Text>
+                <View style={styles.recommendedBadge}>
+                  <Text style={styles.recommendedBadgeText}>Tablet</Text>
+                </View>
+              </View>
+              <Text style={[
+                styles.displaySettingsOptionDesc,
+                enableiPadLayout && styles.displaySettingsOptionDescActive
+              ]}>
+                Multi-column cards on iPad/large screens
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -872,6 +935,41 @@ const styles = StyleSheet.create({
   },
   autoRefreshChipLabelActive: {
     color: '#ffffff'
+  },
+  displaySettingsOptions: {
+    gap: 12
+  },
+  displaySettingsOption: {
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#f0f0f2',
+    borderWidth: 2,
+    borderColor: 'transparent'
+  },
+  displaySettingsOptionActive: {
+    backgroundColor: '#1f1f1f',
+    borderColor: '#1f1f1f'
+  },
+  displaySettingsOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4
+  },
+  displaySettingsOptionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1f1f1f'
+  },
+  displaySettingsOptionTitleActive: {
+    color: '#ffffff'
+  },
+  displaySettingsOptionDesc: {
+    fontSize: 13,
+    color: '#6e6e73'
+  },
+  displaySettingsOptionDescActive: {
+    color: '#cccccc'
   },
   undoProtectionOptions: {
     gap: 12

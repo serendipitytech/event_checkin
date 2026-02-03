@@ -32,7 +32,9 @@ export default function TabsLayout() {
         tabBarActiveTintColor: '#f5cb08',
         tabBarInactiveTintColor: '#9c9c9c',
         tabBarPosition: useSideNav ? 'left' : 'bottom',
+        tabBarVariant: useSideNav ? 'material' : 'uikit',
         tabBarShowLabel: !useSideNav,
+        tabBarLabelPosition: useSideNav ? 'below-icon' : undefined,
         tabBarStyle: hideTabs
           ? { display: 'none' }
           : useSideNav
@@ -40,7 +42,9 @@ export default function TabsLayout() {
                 backgroundColor: '#1f1f1f',
                 borderRightColor: '#2b2b2b',
                 borderRightWidth: 1,
-                width: 56,
+                width: 72,
+                minWidth: 72,
+                maxWidth: 72,
                 paddingTop: 20,
               }
             : {
