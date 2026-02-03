@@ -27,16 +27,34 @@ type Props = {
   initialCode?: string;
 };
 
+const CODE_LENGTH = 8;
+
+// Strip non-alphanumeric characters and limit to CODE_LENGTH
+const normalizeCodeInput = (input: string): string => {
+  return input.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LENGTH);
+};
+
+// Format code for display: XXXX-XXXX
+const formatCodeDisplay = (code: string): string => {
+  const clean = normalizeCodeInput(code);
+  if (clean.length <= 4) return clean;
+  return `${clean.slice(0, 4)}-${clean.slice(4)}`;
+};
+
 export const CodeRedeemModal: React.FC<Props> = ({ visible, onClose, onSuccess, initialCode }) => {
-  const [code, setCode] = useState(initialCode ?? '');
+  const [code, setCode] = useState(initialCode ? normalizeCodeInput(initialCode) : '');
   const [loading, setLoading] = useState(false);
   const modalWidth = useModalWidth();
 
   useEffect(() => {
     if (initialCode && visible) {
-      setCode(initialCode);
+      setCode(normalizeCodeInput(initialCode));
     }
   }, [initialCode, visible]);
+
+  const handleCodeChange = (text: string) => {
+    setCode(normalizeCodeInput(text));
+  };
 
   const handleRedeem = async () => {
     const trimmed = code.trim();
@@ -69,16 +87,22 @@ export const CodeRedeemModal: React.FC<Props> = ({ visible, onClose, onSuccess, 
       >
         <View style={[styles.modal, { width: modalWidth }]}>
           <Text style={styles.title}>Enter Access Code</Text>
-          <Text style={styles.subtitle}>Ask your event planner for your code.</Text>
-          <TextInput
-            style={styles.input}
-            value={code}
-            onChangeText={setCode}
-            placeholder="ABC-123-XYZ"
-            autoCapitalize="characters"
-            autoCorrect={false}
-            editable={!loading}
-          />
+          <Text style={styles.subtitle}>Ask your event planner for your 8-character code.</Text>
+          <View style={styles.codeInputContainer}>
+            <TextInput
+              style={styles.codeInput}
+              value={formatCodeDisplay(code)}
+              onChangeText={handleCodeChange}
+              placeholder="XXXX-XXXX"
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="characters"
+              autoCorrect={false}
+              editable={!loading}
+              maxLength={9} // 8 chars + 1 dash
+              textAlign="center"
+            />
+            <Text style={styles.codeHint}>{code.length}/8 characters</Text>
+          </View>
           <View style={styles.actions}>
             <TouchableOpacity style={[styles.button, styles.cancel]} onPress={onClose} disabled={loading}>
               <Text style={styles.cancelText}>Cancel</Text>
@@ -103,7 +127,23 @@ const styles = StyleSheet.create({
   modal: { backgroundColor: '#fff', borderRadius: 12, padding: 16 },
   title: { fontSize: 18, fontWeight: '600', marginBottom: 6 },
   subtitle: { color: '#6b7280', marginBottom: 12 },
-  input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 12, marginBottom: 12 },
+  codeInputContainer: { marginBottom: 12 },
+  codeInput: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 24,
+    fontWeight: '600',
+    letterSpacing: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  codeHint: {
+    color: '#9ca3af',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 6,
+  },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
   button: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8 },
   cancel: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#d1d5db' },

@@ -59,7 +59,7 @@ serve(async (req) => {
     // Get salt from Vault (cached after first call)
     const codeSalt = await getCodeSalt();
 
-    const normalized = rawCode.toUpperCase().replace(/\s+/g, '');
+    const normalized = rawCode.toUpperCase().replace(/[\s-]+/g, '');
     const codeHash = await sha256Hex(`${codeSalt}|${normalized}`);
 
     // Resolve current user
