@@ -1,39 +1,76 @@
 /**
  * Lintnotes
- * - Purpose: Fallback auth route/screen that navigates users after magic-link handling. Shows a short loading state then routes home.
+ * - Purpose: Fallback auth route/screen that navigates users after magic-link handling.
  * - Exports: default AuthHandler (React component)
- * - Major deps: expo-router (useRouter), react-native ActivityIndicator/Text
- * - Side effects: Performs navigation via router.replace after a brief timeout; no direct auth mutation here.
+ * - Major deps: expo-router (useRouter), react-native, services/supabase
+ * - Side effects: Polls for session, then navigates home.
  */
-import { useEffect } from "react";
-import { Text, View, ActivityIndicator } from "react-native";
+import { useEffect, useState } from "react";
+import { Text, View, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
-import { handleAuthCallback } from "../services/auth";
+import { getSupabaseClient } from "../services/supabase";
+
+const MAX_POLL_ATTEMPTS = 5;
+const POLL_INTERVAL_MS = 500;
 
 export default function AuthHandler() {
   const router = useRouter();
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    // Handle the auth callback from deep link
-    const handleAuth = async () => {
-      try {
-        // The deep link handler should have already processed the authentication
-        // This component serves as a fallback and navigation handler
-        console.log('Auth route handler - processing authentication...');
-        
-        // Small delay to ensure deep link processing is complete
-        setTimeout(() => {
-          router.replace("/"); // Redirect to home screen after successful auth
-        }, 1000);
-      } catch (error) {
-        console.error('Auth route handler error:', error);
-        // Redirect to home even on error to prevent getting stuck
-        router.replace("/");
+    let cancelled = false;
+
+    const pollForSession = async () => {
+      const supabase = getSupabaseClient();
+
+      for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+        if (cancelled) return;
+
+        try {
+          const { data } = await supabase.auth.getSession();
+          if (data.session) {
+            router.replace("/");
+            return;
+          }
+        } catch (err) {
+          console.error("Auth poll error:", err);
+        }
+
+        // Wait before next attempt
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      }
+
+      // All attempts exhausted without finding a session
+      if (!cancelled) {
+        setError(true);
       }
     };
 
-    handleAuth();
+    pollForSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
+
+  if (error) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }}>
+        <Text style={{ fontSize: 18, fontWeight: "600", color: "#111827", marginBottom: 8 }}>
+          Sign-in failed
+        </Text>
+        <Text style={{ fontSize: 14, color: "#6b7280", textAlign: "center", marginBottom: 20 }}>
+          The magic link may have expired. Please try again.
+        </Text>
+        <TouchableOpacity
+          style={{ backgroundColor: "#111827", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 }}
+          onPress={() => router.replace("/")}
+        >
+          <Text style={{ color: "#ffffff", fontWeight: "600" }}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>

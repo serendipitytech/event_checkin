@@ -19,7 +19,7 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
+# package-lock.json must be committed — EAS `npm ci` requires it for clean installs
 
 # Expo
 .expo/
@@ -42,3 +42,6 @@ android/
 
 # Supabase temporary files
 supabase/.temp/
+
+# Claude Code MCP config (project-scoped, not for VCS)
+.mcp.json

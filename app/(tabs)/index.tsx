@@ -344,7 +344,7 @@ export default function CheckInScreen() {
       }
 
       try {
-        const result = await toggleCheckin(attendee.id, makeCheckedIn, selectedEvent?.eventId);
+        const result = await toggleCheckin(attendee.id, makeCheckedIn, selectedEvent!.eventId);
 
         if (!result.success) {
           setError(result.error ?? 'Unable to update attendee.');
@@ -400,7 +400,7 @@ export default function CheckInScreen() {
 
       try {
         const results = await Promise.all(
-          targets.map((target) => toggleCheckin(target.id, true, selectedEvent?.eventId))
+          targets.map((target) => toggleCheckin(target.id, true, selectedEvent!.eventId))
         );
 
         const anyFailed = results.some((r) => !r.success);

@@ -53,7 +53,7 @@ export function useOfflineStatus(): OfflineStatus {
 
   useEffect(() => {
     // Get initial sync status
-    getSyncStatus().then(setSyncStatus);
+    getSyncStatus().then(setSyncStatus).catch(() => {});
 
     // Subscribe to sync status changes
     const unsubscribe = addSyncListener(setSyncStatus);
@@ -78,7 +78,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
   const { isOffline, pendingCount, isSyncing } = useOfflineStatus();
   const [expanded, setExpanded] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const fadeAnim = useState(new Animated.Value(0))[0];
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
   // Animate in/out
   useEffect(() => {
@@ -102,8 +102,12 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
   const handleSync = useCallback(async () => {
     if (isSyncing || isOffline) return;
 
-    const result = await forceSync();
-    setSyncMessage(result.message);
+    try {
+      const result = await forceSync();
+      setSyncMessage(result.message);
+    } catch (error) {
+      setSyncMessage('Sync failed. Please try again.');
+    }
   }, [isSyncing, isOffline]);
 
   // Don't render if nothing to show

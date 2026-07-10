@@ -21,17 +21,18 @@ export const REDIRECT_URL =
 export const ENVIRONMENT =
   process.env.EXPO_PUBLIC_ENV || extra.EXPO_PUBLIC_ENV || 'development';
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.warn('⚠️ Missing Supabase environment variables. Check your Vercel config.');
-}
-
-console.log('✅ Environment variables validated successfully.');
+// Config is validated lazily via validateConfig()
 
 // Backwards-compatible signature used by services/supabase.ts
 export const validateConfig = () => {
-  // Non-throwing validation to avoid web runtime crashes
-  if (!SUPABASE_URL) console.warn('SUPABASE_URL is missing');
-  if (!SUPABASE_ANON_KEY) console.warn('SUPABASE_ANON_KEY is missing');
-  if (!REDIRECT_URL) console.warn('REDIRECT_URL is missing');
+  if (!SUPABASE_URL) {
+    throw new Error('SUPABASE_URL is missing. Check your environment configuration.');
+  }
+  if (!SUPABASE_ANON_KEY) {
+    throw new Error('SUPABASE_ANON_KEY is missing. Check your environment configuration.');
+  }
+  if (!REDIRECT_URL) {
+    console.warn('REDIRECT_URL is missing — magic link sign-in will not work');
+  }
   return true;
 };

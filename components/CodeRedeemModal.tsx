@@ -38,7 +38,11 @@ export const CodeRedeemModal: React.FC<Props> = ({ visible, onClose, onSuccess, 
         Alert.alert('Invalid Code', res.error || 'Please check the code and try again.');
         return;
       }
-      onSuccess({ eventId: res.eventId!, role: res.role! });
+      if (!res.eventId || !res.role) {
+        Alert.alert('Error', 'Invalid response from server. Missing event or role data.');
+        return;
+      }
+      onSuccess({ eventId: res.eventId, role: res.role });
       setCode('');
       onClose();
     } catch (e) {

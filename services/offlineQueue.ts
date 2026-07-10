@@ -6,10 +6,24 @@
  * - Side effects: Reads/writes to AsyncStorage queue.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../utils/logger';
 
 const QUEUE_STORAGE_KEY = '@checkin_offline_queue';
 const MAX_QUEUE_SIZE = 100; // Max items per event to prevent bloat
 const MAX_RETRY_ATTEMPTS = 3;
+
+/**
+ * Promise-based mutex to serialize all queue write operations.
+ * Prevents race conditions when multiple callers attempt
+ * concurrent loadQueue/saveQueue cycles.
+ */
+let queueMutex: Promise<void> = Promise.resolve();
+
+function withQueueLock<T>(fn: () => Promise<T>): Promise<T> {
+  const result = queueMutex.then(fn, fn);
+  queueMutex = result.then(() => {}, () => {});
+  return result;
+}
 
 export type QueuedCheckIn = {
   id: string;
@@ -47,7 +61,7 @@ async function loadQueue(): Promise<QueuedCheckIn[]> {
     if (!stored) return [];
     return JSON.parse(stored) as QueuedCheckIn[];
   } catch (error) {
-    console.error('Failed to load offline queue:', error);
+    logger.error('Failed to load offline queue:', error);
     return [];
   }
 }
@@ -59,73 +73,77 @@ async function saveQueue(queue: QueuedCheckIn[]): Promise<void> {
   try {
     await AsyncStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queue));
   } catch (error) {
-    console.error('Failed to save offline queue:', error);
+    logger.error('Failed to save offline queue:', error);
   }
 }
 
 /**
  * Queue a check-in operation for later sync
  */
-export async function queueCheckIn(
+export function queueCheckIn(
   attendeeId: string,
   eventId: string,
   checkedIn: boolean
 ): Promise<{ success: boolean; queueId?: string; error?: string }> {
-  try {
-    const queue = await loadQueue();
+  return withQueueLock(async () => {
+    try {
+      const queue = await loadQueue();
 
-    // Check queue size limit for this event
-    const eventQueueSize = queue.filter(
-      (item) => item.eventId === eventId && !item.synced
-    ).length;
+      // Check queue size limit for this event
+      const eventQueueSize = queue.filter(
+        (item) => item.eventId === eventId && !item.synced
+      ).length;
 
-    if (eventQueueSize >= MAX_QUEUE_SIZE) {
+      if (eventQueueSize >= MAX_QUEUE_SIZE) {
+        return {
+          success: false,
+          error: `Queue limit reached (${MAX_QUEUE_SIZE} pending items). Please sync when online.`,
+        };
+      }
+
+      // Check if there's already a pending operation for this attendee
+      const existingIndex = queue.findIndex(
+        (item) =>
+          item.attendeeId === attendeeId &&
+          item.eventId === eventId &&
+          !item.synced
+      );
+
+      const queueId = generateQueueId();
+      const newItem: QueuedCheckIn = {
+        id: queueId,
+        attendeeId,
+        eventId,
+        checkedIn,
+        queuedAt: Date.now(),
+        attempts: 0,
+        lastAttemptAt: null,
+        synced: false,
+        error: null,
+      };
+
+      const updatedQueue = existingIndex >= 0
+        ? // Replace existing pending operation (user changed their mind)
+          queue.map((item, i) => i === existingIndex ? newItem : item)
+        : [...queue, newItem];
+
+      if (existingIndex >= 0) {
+        logger.debug(`Replaced queued check-in for attendee ${attendeeId}`);
+      } else {
+        logger.debug(`Queued check-in for attendee ${attendeeId}`);
+      }
+
+      await saveQueue(updatedQueue);
+
+      return { success: true, queueId };
+    } catch (error) {
+      logger.error('Failed to queue check-in:', error);
       return {
         success: false,
-        error: `Queue limit reached (${MAX_QUEUE_SIZE} pending items). Please sync when online.`,
+        error: error instanceof Error ? error.message : 'Failed to queue check-in',
       };
     }
-
-    // Check if there's already a pending operation for this attendee
-    const existingIndex = queue.findIndex(
-      (item) =>
-        item.attendeeId === attendeeId &&
-        item.eventId === eventId &&
-        !item.synced
-    );
-
-    const queueId = generateQueueId();
-    const newItem: QueuedCheckIn = {
-      id: queueId,
-      attendeeId,
-      eventId,
-      checkedIn,
-      queuedAt: Date.now(),
-      attempts: 0,
-      lastAttemptAt: null,
-      synced: false,
-      error: null,
-    };
-
-    if (existingIndex >= 0) {
-      // Replace existing pending operation (user changed their mind)
-      queue[existingIndex] = newItem;
-      console.log(`Replaced queued check-in for attendee ${attendeeId}`);
-    } else {
-      queue.push(newItem);
-      console.log(`Queued check-in for attendee ${attendeeId}`);
-    }
-
-    await saveQueue(queue);
-
-    return { success: true, queueId };
-  } catch (error) {
-    console.error('Failed to queue check-in:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to queue check-in',
-    };
-  }
+  });
 }
 
 /**
@@ -158,76 +176,85 @@ export async function getPendingOperations(
 /**
  * Mark an operation as synced
  */
-export async function markSynced(queueId: string): Promise<void> {
-  const queue = await loadQueue();
-  const index = queue.findIndex((item) => item.id === queueId);
+export function markSynced(queueId: string): Promise<void> {
+  return withQueueLock(async () => {
+    const queue = await loadQueue();
+    const index = queue.findIndex((item) => item.id === queueId);
 
-  if (index >= 0) {
-    queue[index] = {
-      ...queue[index],
-      synced: true,
-      error: null,
-    };
-    await saveQueue(queue);
-    console.log(`Marked queue item ${queueId} as synced`);
-  }
+    if (index >= 0) {
+      const updatedQueue = queue.map((item, i) =>
+        i === index ? { ...item, synced: true, error: null } : item
+      );
+      await saveQueue(updatedQueue);
+      logger.debug(`Marked queue item ${queueId} as synced`);
+    }
+  });
 }
 
 /**
  * Mark an operation as failed with error
  */
-export async function markFailed(
+export function markFailed(
   queueId: string,
   error: string
 ): Promise<void> {
-  const queue = await loadQueue();
-  const index = queue.findIndex((item) => item.id === queueId);
+  return withQueueLock(async () => {
+    const queue = await loadQueue();
+    const index = queue.findIndex((item) => item.id === queueId);
 
-  if (index >= 0) {
-    queue[index] = {
-      ...queue[index],
-      attempts: queue[index].attempts + 1,
-      lastAttemptAt: Date.now(),
-      error,
-    };
-    await saveQueue(queue);
-    console.log(`Marked queue item ${queueId} as failed (attempt ${queue[index].attempts})`);
-  }
+    if (index >= 0) {
+      const updatedItem = {
+        ...queue[index],
+        attempts: queue[index].attempts + 1,
+        lastAttemptAt: Date.now(),
+        error,
+      };
+      const updatedQueue = queue.map((item, i) =>
+        i === index ? updatedItem : item
+      );
+      await saveQueue(updatedQueue);
+      logger.debug(`Marked queue item ${queueId} as failed (attempt ${updatedItem.attempts})`);
+    }
+  });
 }
 
 /**
  * Clear all synced operations (cleanup)
  */
-export async function clearSyncedOperations(): Promise<number> {
-  const queue = await loadQueue();
-  const before = queue.length;
-  const filtered = queue.filter((item) => !item.synced);
-  await saveQueue(filtered);
-  const cleared = before - filtered.length;
-  console.log(`Cleared ${cleared} synced operations from queue`);
-  return cleared;
+export function clearSyncedOperations(): Promise<number> {
+  return withQueueLock(async () => {
+    const queue = await loadQueue();
+    const before = queue.length;
+    const filtered = queue.filter((item) => !item.synced);
+    await saveQueue(filtered);
+    const cleared = before - filtered.length;
+    logger.debug(`Cleared ${cleared} synced operations from queue`);
+    return cleared;
+  });
 }
 
 /**
  * Clear old synced operations (older than 24 hours)
  */
-export async function clearOldSyncedOperations(): Promise<number> {
-  const queue = await loadQueue();
-  const before = queue.length;
-  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+export function clearOldSyncedOperations(): Promise<number> {
+  return withQueueLock(async () => {
+    const queue = await loadQueue();
+    const before = queue.length;
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
 
-  const filtered = queue.filter(
-    (item) => !item.synced || item.queuedAt > oneDayAgo
-  );
+    const filtered = queue.filter(
+      (item) => !item.synced || item.queuedAt > oneDayAgo
+    );
 
-  await saveQueue(filtered);
-  const cleared = before - filtered.length;
+    await saveQueue(filtered);
+    const cleared = before - filtered.length;
 
-  if (cleared > 0) {
-    console.log(`Cleared ${cleared} old synced operations from queue`);
-  }
+    if (cleared > 0) {
+      logger.debug(`Cleared ${cleared} old synced operations from queue`);
+    }
 
-  return cleared;
+    return cleared;
+  });
 }
 
 /**
@@ -287,24 +314,28 @@ export async function hasPendingCheckIn(
 /**
  * Remove a specific item from the queue (e.g., user cancels)
  */
-export async function removeFromQueue(queueId: string): Promise<boolean> {
-  const queue = await loadQueue();
-  const index = queue.findIndex((item) => item.id === queueId);
+export function removeFromQueue(queueId: string): Promise<boolean> {
+  return withQueueLock(async () => {
+    const queue = await loadQueue();
+    const index = queue.findIndex((item) => item.id === queueId);
 
-  if (index >= 0) {
-    queue.splice(index, 1);
-    await saveQueue(queue);
-    console.log(`Removed queue item ${queueId}`);
-    return true;
-  }
+    if (index >= 0) {
+      const updatedQueue = queue.filter((_, i) => i !== index);
+      await saveQueue(updatedQueue);
+      logger.debug(`Removed queue item ${queueId}`);
+      return true;
+    }
 
-  return false;
+    return false;
+  });
 }
 
 /**
  * Clear entire queue (use with caution)
  */
-export async function clearQueue(): Promise<void> {
-  await AsyncStorage.removeItem(QUEUE_STORAGE_KEY);
-  console.log('Cleared entire offline queue');
+export function clearQueue(): Promise<void> {
+  return withQueueLock(async () => {
+    await AsyncStorage.removeItem(QUEUE_STORAGE_KEY);
+    logger.debug('Cleared entire offline queue');
+  });
 }

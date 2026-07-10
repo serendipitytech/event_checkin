@@ -10,6 +10,7 @@ import * as Linking from "expo-linking";
 import Constants from "expo-constants";
 import { getSupabaseClient } from "./supabase";
 import { parseCodeFromUrl } from "./qrCodeGeneration";
+import { logger } from '../utils/logger';
 
 export type CodeLinkPayload = {
   code: string;
@@ -31,7 +32,7 @@ function emitCodeLink(payload: CodeLinkPayload): void {
     try {
       listener(payload);
     } catch (err) {
-      console.error("Code link listener error:", err);
+      logger.error("Code link listener error:", err);
     }
   });
 }
@@ -46,7 +47,7 @@ const parseFragment = (url: string): Record<string, string> => {
     for (const [key, value] of params.entries()) result[key] = value;
     return result;
   } catch (err) {
-    console.error("Failed to parse URL fragment:", err);
+    logger.error("Failed to parse URL fragment:", err);
     return {};
   }
 };
@@ -55,16 +56,13 @@ const parseFragment = (url: string): Record<string, string> => {
 export const launchMagicLinkSignIn = async (): Promise<void> => {
   const supabase = getSupabaseClient();
 
-  const redirectTo =
-    process.env.EXPO_PUBLIC_REDIRECT_URL ||
-    'https://efcgzxjwystresjbcezc.functions.supabase.co/redirect';
-  
-  if (!process.env.EXPO_PUBLIC_REDIRECT_URL) {
-    console.warn('⚠️ EXPO_PUBLIC_REDIRECT_URL not set, using fallback:', redirectTo);
+  const redirectTo = process.env.EXPO_PUBLIC_REDIRECT_URL;
+  if (!redirectTo) {
+    throw new Error('EXPO_PUBLIC_REDIRECT_URL is not configured. Cannot send magic link.');
   }
 
-  console.log("🔗 Using redirectTo:", redirectTo);
-  console.log("🔧 Execution Environment:", Constants.executionEnvironment);
+  logger.debug("Using redirectTo:", redirectTo);
+  logger.debug("Execution Environment:", Constants.executionEnvironment);
   // Web: use window.prompt; Native: use Alert.prompt
   if (Platform.OS === 'web') {
     // Web prompt fallback
@@ -76,7 +74,7 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
     if (!email) return;
 
     try {
-      console.log('📨 Sending magic link to (web):', email);
+      logger.info('Sending magic link (web)');
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo },
@@ -86,7 +84,7 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
         window.alert('Check your email for a magic link.');
       }
     } catch (err) {
-      console.error('Magic link error (web):', err);
+      logger.error('Magic link error (web):', err);
       if (typeof window !== 'undefined' && window.alert) {
         window.alert(err instanceof Error ? err.message : 'Unexpected error');
       }
@@ -109,7 +107,7 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
           }
 
           try {
-            console.log('📨 Sending magic link to (native):', email.trim());
+            logger.info('Sending magic link (native)');
             const { error } = await supabase.auth.signInWithOtp({
               email: email.trim(),
               options: { emailRedirectTo: redirectTo },
@@ -119,7 +117,7 @@ export const launchMagicLinkSignIn = async (): Promise<void> => {
 
             Alert.alert('Check Your Email', 'Tap the link in your email to sign in.');
           } catch (err) {
-            console.error('Magic link error (native):', err);
+            logger.error('Magic link error (native):', err);
             Alert.alert('Sign-in Failed', err instanceof Error ? err.message : 'Unexpected error');
           }
         },
@@ -136,7 +134,7 @@ const handleCodeRedemptionUrl = (url: string): boolean => {
   const { code, eventId } = parseCodeFromUrl(url);
 
   if (code) {
-    console.log("🔑 Code redemption link detected:", { code, eventId });
+    logger.info("Code redemption link detected");
     emitCodeLink({ code, eventId });
     return true;
   }
@@ -147,19 +145,19 @@ const handleCodeRedemptionUrl = (url: string): boolean => {
 /** Handle Supabase redirect callback */
 export const handleAuthCallback = async (url: string): Promise<void> => {
   const supabase = getSupabaseClient();
-  console.log("Handling redirect:", url);
+  logger.debug("Handling redirect:", url);
 
   const fragment = parseFragment(url);
   const { access_token, refresh_token } = fragment;
 
   // Early return for normal app launches without auth tokens
   if (!access_token && !refresh_token) {
-    console.log("ℹ️ No auth fragment detected — likely a normal app launch, skipping callback.");
+    logger.debug("No auth fragment detected — likely a normal app launch, skipping callback.");
     return;
   }
 
   if (access_token && refresh_token) {
-    console.log("✅ Tokens detected, setting session...");
+    logger.info("Tokens detected, setting session...");
     try {
       const { data, error } = await supabase.auth.setSession({
         access_token,
@@ -168,20 +166,20 @@ export const handleAuthCallback = async (url: string): Promise<void> => {
       if (error) throw error;
 
       if (data?.session) {
-        console.log("✅ Signed in user:", data.user?.email);
-        console.log("🔑 Supabase session restored from storage or token exchange.");
+        logger.info("User signed in successfully");
+        logger.info("Supabase session restored from storage or token exchange.");
         Alert.alert("Welcome!", "You're now signed in.");
       } else {
-        console.warn("No session returned from Supabase after setSession.");
+        logger.warn("No session returned from Supabase after setSession.");
       }
     } catch (err) {
       // Gracefully handle common errors like unknown user/token mismatch
-      console.warn("Auth callback processing failed:", err);
+      logger.warn("Auth callback processing failed:", err);
       Alert.alert("Sign-in Failed", "This magic link is invalid or expired.");
     }
   } else {
     // Malformed token case: we had a fragment but were missing one of the tokens
-    console.warn("❌ Incomplete auth tokens found in callback URL.");
+    logger.warn("Incomplete auth tokens found in callback URL.");
     Alert.alert("Sign-in Failed", "Invalid or expired magic link.");
   }
 };
@@ -191,32 +189,32 @@ export const initializeDeepLinkHandling = async (): Promise<() => void> => {
   try {
     const initialUrl = await Linking.getInitialURL();
     if (initialUrl) {
-      console.log("App opened via URL:", initialUrl);
+      logger.debug("App opened via URL:", initialUrl);
 
       if (initialUrl.includes('#access_token')) {
         await handleAuthCallback(initialUrl);
       } else if (initialUrl.includes('code=') || initialUrl.includes('/redeem')) {
         handleCodeRedemptionUrl(initialUrl);
       } else {
-        console.log("No auth fragment or code in initial URL; skipping callback handler.");
+        logger.debug("No auth fragment or code in initial URL; skipping callback handler.");
       }
     }
 
     const subscription = Linking.addEventListener("url", (event) => {
-      console.log("Received deep link:", event.url);
+      logger.debug("Received deep link:", event.url);
 
       if (event.url?.includes('#access_token')) {
         handleAuthCallback(event.url);
       } else if (event.url?.includes('code=') || event.url?.includes('/redeem')) {
         handleCodeRedemptionUrl(event.url);
       } else {
-        console.log("No auth fragment or code in deep link; skipping callback handler.");
+        logger.debug("No auth fragment or code in deep link; skipping callback handler.");
       }
     });
 
     return () => subscription.remove();
   } catch (err) {
-    console.error("Failed to initialize deep link listener:", err);
+    logger.error("Failed to initialize deep link listener:", err);
     return () => {};
   }
 };

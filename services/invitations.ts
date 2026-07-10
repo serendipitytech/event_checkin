@@ -9,6 +9,7 @@ import { getSupabaseClient } from './supabase';
 import type { EventRole } from './permissions';
 import * as Linking from "expo-linking";
 import Constants from 'expo-constants';
+import { logger } from '../utils/logger';
 
 export type InviteUserData = {
   email: string;
@@ -22,16 +23,13 @@ export type InviteUserData = {
  * Production: Uses HTTPS domain for deployed app
  */
 function getRedirectTo(): string {
-  const redirectTo =
-    process.env.EXPO_PUBLIC_REDIRECT_URL ||
-    'https://efcgzxjwystresjbcezc.functions.supabase.co/redirect';
-  
-  if (!process.env.EXPO_PUBLIC_REDIRECT_URL) {
-    console.warn('⚠️ EXPO_PUBLIC_REDIRECT_URL not set, using fallback:', redirectTo);
+  const redirectTo = process.env.EXPO_PUBLIC_REDIRECT_URL;
+  if (!redirectTo) {
+    throw new Error('EXPO_PUBLIC_REDIRECT_URL is not configured. Cannot send invitation.');
   }
-  
-  console.log('🔧 Execution Environment:', Constants.executionEnvironment);
-  console.log('🔗 Using redirectTo:', redirectTo);
+
+  logger.debug('Execution Environment:', Constants.executionEnvironment);
+  logger.debug('Using redirectTo:', redirectTo);
   return redirectTo;
 }
 
@@ -55,11 +53,10 @@ const fetchAccessibleEvent = async (
   const { data, error } = await supabase.rpc('get_my_access');
 
   if (error) {
-    console.error('Error fetching accessible events:', { 
-      eventId, 
-      userId, 
-      error: error.message, 
-      details: error.details 
+    logger.error('Error fetching accessible events:', {
+      eventId,
+      error: error.message,
+      details: error.details
     });
     throw new Error('Failed to fetch accessible events');
   }
@@ -76,7 +73,7 @@ const fetchAccessibleEvent = async (
   const eventRow = rows.find(row => row.event_id === eventId);
 
   if (!eventRow) {
-    console.error('Event not accessible to current user:', { eventId, userId });
+    logger.error('Event not accessible to current user:', { eventId });
     throw new Error('Event not accessible to current user');
   }
 
@@ -108,19 +105,26 @@ export const inviteUserToEvent = async (
 
     // Get the appropriate redirect URL for the environment
     const redirectTo = getRedirectTo();
-    console.log('Sending invite with redirectTo:', redirectTo);
+    logger.debug('Sending invite with redirectTo:', redirectTo);
+
+    // Validate environment variables before making the request
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Supabase environment variables are not configured');
+    }
 
     // Call the Edge Function
-    const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/invite_user`, {
+    const response = await fetch(`${supabaseUrl}/functions/v1/invite_user`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`,
-        'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
+        'apikey': supabaseAnonKey
       },
-      body: JSON.stringify({ 
-        eventId, 
-        email: email.trim(), 
+      body: JSON.stringify({
+        eventId,
+        email: email.trim(),
         role,
         orgId: eventData.orgId,
         orgName: eventData.orgName,
@@ -131,23 +135,23 @@ export const inviteUserToEvent = async (
     const data = await response.json();
     
     if (!response.ok) {
-      console.error('Edge Function error:', data);
+      logger.error('Edge Function error:', data);
       throw new Error(data.error || 'Failed to invite user');
     }
 
     // Check if user was successfully added to the event
     if (data.eventMembershipCreated) {
-      console.log(`✅ User added to event ${data.eventId} as ${data.role}`);
+      logger.info(`User added to event ${data.eventId} as ${data.role}`);
     } else {
-      console.error('❌ Failed to assign user to event');
+      logger.error('Failed to assign user to event');
       throw new Error('Failed to assign user to event');
     }
 
-    console.log('Successfully sent invitation to:', email);
-    console.log('Edge Function response:', data);
-    
+    logger.info('Successfully sent invitation');
+    logger.debug('Edge Function response:', data);
+
   } catch (error) {
-    console.error('Invite user error:', error);
+    logger.error('Invite user error:', error);
     throw error;
   }
 };
@@ -170,19 +174,26 @@ export const resendInvitation = async (
 
     // Get the appropriate redirect URL for the environment
     const redirectTo = getRedirectTo();
-    console.log('Resending invite with redirectTo:', redirectTo);
+    logger.debug('Resending invite with redirectTo:', redirectTo);
+
+    // Validate environment variables before making the request
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Supabase environment variables are not configured');
+    }
 
     // Call the Edge Function with resend flag
-    const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/invite_user`, {
+    const response = await fetch(`${supabaseUrl}/functions/v1/invite_user`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`,
-        'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
+        'apikey': supabaseAnonKey
       },
-      body: JSON.stringify({ 
-        eventId, 
-        email: email.trim(), 
+      body: JSON.stringify({
+        eventId,
+        email: email.trim(),
         role: 'checker', // Default role for resend
         orgId: eventData.orgId,
         orgName: eventData.orgName,
@@ -194,22 +205,22 @@ export const resendInvitation = async (
     const data = await response.json();
     
     if (!response.ok) {
-      console.error('Edge Function error (resend):', data);
+      logger.error('Edge Function error (resend):', data);
       throw new Error(data.error || 'Failed to resend invitation');
     }
 
     // Check if user was successfully added to the event
     if (data.eventMembershipCreated) {
-      console.log(`✅ User added to event ${data.eventId} as ${data.role}`);
+      logger.info(`User added to event ${data.eventId} as ${data.role}`);
     } else {
-      console.error('❌ Failed to assign user to event');
+      logger.error('Failed to assign user to event');
       throw new Error('Failed to assign user to event');
     }
 
-    console.log('Successfully resent invitation to:', email);
-    
+    logger.info('Successfully resent invitation');
+
   } catch (error) {
-    console.error('Resend invitation error:', error);
+    logger.error('Resend invitation error:', error);
     throw error;
   }
 };

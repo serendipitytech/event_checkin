@@ -6,24 +6,16 @@
 
 import AsyncStorage from '../utils/safeAsyncStorage';
 import { getSupabaseClient } from './supabase';
+import { randomUUID as cryptoRandomUUID } from 'expo-crypto';
 
 const CLIENT_INSTANCE_KEY = 'client_instance_id';
-
-function randomUUID(): string {
-  // Simple uuid v4 fallback (React Native)
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
 
 export async function getClientInstanceId(): Promise<string> {
   try {
     const val = await AsyncStorage.getItem(CLIENT_INSTANCE_KEY);
     if (val) return val;
   } catch {}
-  const id = randomUUID();
+  const id = cryptoRandomUUID();
   try { await AsyncStorage.setItem(CLIENT_INSTANCE_KEY, id); } catch {}
   return id;
 }

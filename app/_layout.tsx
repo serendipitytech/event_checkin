@@ -12,6 +12,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { View, Text, StyleSheet, SafeAreaView, Platform, AppState } from 'react-native';
 
 import { SupabaseProvider } from '../contexts/SupabaseContext';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { validateEnv } from '../src/utils/validateEnv';
 import { initSyncManager } from '../services/syncManager';
 
@@ -123,12 +124,14 @@ export default function RootLayout() {
     <>
       {!hideBanner && <EnvironmentBanner />}
       <SupabaseProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <StatusBar style="light" />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          </Stack>
-        </GestureHandlerRootView>
+        <ErrorBoundary>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <StatusBar style="light" />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            </Stack>
+          </GestureHandlerRootView>
+        </ErrorBoundary>
       </SupabaseProvider>
     </>
   );

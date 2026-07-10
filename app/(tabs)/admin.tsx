@@ -10,7 +10,7 @@
  * - Side effects: Triggers data mutations via services; updates shared auto-refresh interval; opens modals.
  */
 import { useEffect, useState } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 
 import ActionButton from '../../components/ActionButton';
 import {
@@ -266,9 +266,12 @@ export default function AdminScreen() {
                   res.message || 'Please try again later or use the web portal.',
                   [
                     {
-                      text: 'Open Web Portal',
+                      text: 'Learn More',
                       onPress: () => {
-                        void Linking.openURL('https://your-domain.com/account/delete');
+                        Alert.alert(
+                          'Not Yet Available',
+                          'Account deletion via web portal is not yet available. Please contact your event administrator for assistance.'
+                        );
                       },
                     },
                     { text: 'OK' },
@@ -748,20 +751,26 @@ export default function AdminScreen() {
         <TouchableOpacity
           style={styles.floatingSignOutButton}
           onPress={() => {
-            Alert.alert(
-              'Sign Out',
-              'Are you sure you want to sign out?',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Sign Out',
-                  style: 'destructive',
-                  onPress: () => {
-                    void signOut();
+            if (Platform.OS === 'web') {
+              if (window.confirm('Are you sure you want to sign out?')) {
+                void signOut();
+              }
+            } else {
+              Alert.alert(
+                'Sign Out',
+                'Are you sure you want to sign out?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Sign Out',
+                    style: 'destructive',
+                    onPress: () => {
+                      void signOut();
+                    }
                   }
-                }
-              ]
-            );
+                ]
+              );
+            }
           }}
           activeOpacity={0.8}
         >

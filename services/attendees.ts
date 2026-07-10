@@ -13,7 +13,8 @@ import * as Network from 'expo-network';
 
 import { getSupabaseClient } from './supabase';
 import { subscribeToAttendees as subscribeToAttendeesRealtime } from './realtime';
-import { queueCheckIn, hasPendingCheckIn } from './offlineQueue';
+import { queueCheckIn, hasPendingCheckIn, getPendingOperations } from './offlineQueue';
+import { logger } from '../utils/logger';
 
 // Storage key prefix for cached attendees
 const ATTENDEES_CACHE_PREFIX = '@checkin_attendees_';
@@ -83,9 +84,9 @@ const saveAttendeesToCache = async (eventId: string, attendees: Attendee[]): Pro
   try {
     const cacheKey = `${ATTENDEES_CACHE_PREFIX}${eventId}`;
     await AsyncStorage.setItem(cacheKey, JSON.stringify(attendees));
-    console.log('💾 Cached attendees for event:', eventId, `(${attendees.length} attendees)`);
+    logger.debug('Cached attendees for event:', eventId, `(${attendees.length} attendees)`);
   } catch (error) {
-    console.error('Failed to cache attendees:', error);
+    logger.error('Failed to cache attendees:', error);
     // Don't throw - caching is optional
   }
 };
@@ -113,9 +114,9 @@ const updateCacheOptimistically = async (
     );
 
     await saveAttendeesToCache(eventId, updated);
-    console.log(`📝 Updated cache optimistically for attendee ${attendeeId}`);
+    logger.debug(`Updated cache optimistically for attendee ${attendeeId}`);
   } catch (error) {
-    console.error('Failed to update cache optimistically:', error);
+    logger.error('Failed to update cache optimistically:', error);
   }
 };
 
@@ -125,14 +126,13 @@ const updateCacheOptimistically = async (
  */
 const applyPendingCheckIns = async (eventId: string, attendees: Attendee[]): Promise<Attendee[]> => {
   try {
-    const { getPendingOperations } = await import('./offlineQueue');
     const pending = await getPendingOperations(eventId);
 
     if (pending.length === 0) {
       return attendees;
     }
 
-    console.log(`🔄 Applying ${pending.length} pending offline check-ins to attendee list`);
+    logger.debug(`Applying ${pending.length} pending offline check-ins to attendee list`);
 
     // Create a map of pending states by attendee ID
     const pendingStates = new Map<string, boolean>();
@@ -153,7 +153,7 @@ const applyPendingCheckIns = async (eventId: string, attendees: Attendee[]): Pro
       return attendee;
     });
   } catch (error) {
-    console.error('Failed to apply pending check-ins:', error);
+    logger.error('Failed to apply pending check-ins:', error);
     return attendees;
   }
 };
@@ -167,12 +167,12 @@ const loadAttendeesFromCache = async (eventId: string): Promise<Attendee[] | nul
     const cached = await AsyncStorage.getItem(cacheKey);
     if (cached) {
       const attendees = JSON.parse(cached) as Attendee[];
-      console.log('📦 Restored attendees from cache for event:', eventId, `(${attendees.length} attendees)`);
+      logger.debug('Restored attendees from cache for event:', eventId, `(${attendees.length} attendees)`);
       return attendees;
     }
     return null;
   } catch (error) {
-    console.error('Failed to load attendees from cache:', error);
+    logger.error('Failed to load attendees from cache:', error);
     return null;
   }
 };
@@ -186,14 +186,14 @@ export const fetchAttendees = async (eventId: string, useCache: boolean = true):
 
   // If offline and cache is allowed, try to load from cache
   if (!isOnline && useCache) {
-    console.log('📴 Offline detected, loading from cache');
+    logger.info('Offline detected, loading from cache');
     const cached = await loadAttendeesFromCache(eventId);
     if (cached) {
       // Apply any pending offline check-ins to show optimistic state
       const withPending = await applyPendingCheckIns(eventId, cached);
       return withPending;
     }
-    console.warn('⚠️ No cache available for offline use');
+    logger.warn('No cache available for offline use');
     throw new Error('Unable to load attendees while offline');
   }
 
@@ -205,14 +205,14 @@ export const fetchAttendees = async (eventId: string, useCache: boolean = true):
     .order('full_name');
 
   if (error) {
-    console.error('fetchAttendees failed:', JSON.stringify(error, null, 2));
+    logger.error('fetchAttendees failed:', JSON.stringify(error, null, 2));
     
     // If fetch fails and we have cache, use it as fallback
     if (useCache) {
-      console.log('⚠️ Fetch failed, attempting to load from cache');
+      logger.warn('Fetch failed, attempting to load from cache');
       const cached = await loadAttendeesFromCache(eventId);
       if (cached) {
-        console.log('✅ Using cached data as fallback');
+        logger.info('Using cached data as fallback');
         // Apply any pending offline check-ins
         const withPending = await applyPendingCheckIns(eventId, cached);
         return withPending;
@@ -231,7 +231,9 @@ export const fetchAttendees = async (eventId: string, useCache: boolean = true):
     await saveAttendeesToCache(eventId, attendees);
   }
 
-  return attendees;
+  // Apply pending offline check-ins so fresh data reflects optimistic state
+  const withPending = await applyPendingCheckIns(eventId, attendees);
+  return withPending;
 };
 
 /**
@@ -239,7 +241,7 @@ export const fetchAttendees = async (eventId: string, useCache: boolean = true):
  */
 export const syncAttendeesCache = async (eventId: string, attendees: Attendee[]): Promise<void> => {
   await saveAttendeesToCache(eventId, attendees);
-  console.log('🔁 Synced cached attendees after update');
+  logger.debug('Synced cached attendees after update');
 };
 
 export const subscribeAttendees = (
@@ -251,13 +253,13 @@ export const subscribeAttendees = (
     {
       eventId,
       onError: (error) => {
-        console.error('Real-time attendee subscription error:', error);
+        logger.error('Real-time attendee subscription error:', error);
       },
       onStatusChange: (status) => {
-        console.log('Real-time attendee subscription status:', status);
+        logger.debug('Real-time attendee subscription status:', status);
       },
       onReconnected: () => {
-        console.log('🔄 Realtime reconnected, refreshing attendee data');
+        logger.info('Realtime reconnected, refreshing attendee data');
         onReconnected?.();
       },
       reconnectAttempts: 5,
@@ -288,15 +290,15 @@ export type ToggleCheckinResult = {
 export const toggleCheckin = async (
   attendeeId: string,
   checkedIn: boolean,
-  eventId?: string
+  eventId: string
 ): Promise<ToggleCheckinResult> => {
   // Check network connectivity
   const networkState = await Network.getNetworkStateAsync();
   const isOnline = networkState.isConnected && networkState.isInternetReachable;
 
-  // If offline and we have an eventId, queue the operation
-  if (!isOnline && eventId) {
-    console.log(`📴 Offline: queuing check-in for attendee ${attendeeId}`);
+  // If offline, queue the operation for later sync
+  if (!isOnline) {
+    logger.info(`Offline: queuing check-in for attendee ${attendeeId}`);
     const result = await queueCheckIn(attendeeId, eventId, checkedIn);
 
     if (result.success) {
@@ -316,13 +318,11 @@ export const toggleCheckin = async (
   });
 
   if (error) {
-    // If online request fails, try to queue if we have eventId
-    if (eventId) {
-      console.log(`⚠️ Online check-in failed, queuing for retry: ${error.message}`);
-      const queueResult = await queueCheckIn(attendeeId, eventId, checkedIn);
-      if (queueResult.success) {
-        return { success: true, queued: true };
-      }
+    // If online request fails, try to queue for retry
+    logger.warn(`Online check-in failed, queuing for retry: ${error.message}`);
+    const queueResult = await queueCheckIn(attendeeId, eventId, checkedIn);
+    if (queueResult.success) {
+      return { success: true, queued: true };
     }
 
     return { success: false, queued: false, error: error.message };
@@ -346,7 +346,7 @@ export const resetAllCheckins = async (eventId: string): Promise<void> => {
   const { error } = await supabase.rpc('reset_attendees', { p_event_id: eventId });
 
   if (error) {
-    console.error('resetAllCheckins failed:', JSON.stringify(error, null, 2));
+    logger.error('resetAllCheckins failed:', JSON.stringify(error, null, 2));
     throw error;
   }
 };

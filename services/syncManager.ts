@@ -17,6 +17,12 @@ import {
 } from './offlineQueue';
 import { getSupabaseClient } from './supabase';
 import { emitRefreshAttendees } from './attendeeEvents';
+import { logger } from '../utils/logger';
+
+const NETWORK_POLL_INTERVAL_MS = 5000;
+const RECONNECT_SYNC_DELAY_MS = 1000;
+const RETRY_DELAYS_MS = [1000, 2000, 5000];
+const MAX_SYNC_RETRIES = 3;
 
 export type SyncStatus = {
   isSyncing: boolean;
@@ -66,7 +72,7 @@ async function emitSyncStatus(): Promise<void> {
     try {
       listener(status);
     } catch (error) {
-      console.error('Sync listener error:', error);
+      logger.error('Sync listener error:', error);
     }
   });
 }
@@ -77,34 +83,57 @@ async function emitSyncStatus(): Promise<void> {
 async function syncOperation(item: QueuedCheckIn): Promise<boolean> {
   const supabase = getSupabaseClient();
 
-  try {
-    // Call the toggle_checkin RPC
-    const { error } = await supabase.rpc('toggle_checkin', {
-      p_attendee_id: item.attendeeId,
-      p_checked: item.checkedIn,
-    });
+  for (let attempt = 0; attempt <= MAX_SYNC_RETRIES; attempt++) {
+    try {
+      const { error } = await supabase.rpc('toggle_checkin', {
+        p_attendee_id: item.attendeeId,
+        p_checked: item.checkedIn,
+      });
 
-    if (error) {
-      // Check if it's a conflict (server state differs)
-      // In this case, we still mark as synced since server is source of truth
-      if (error.message.includes('already')) {
-        console.log(`Conflict for ${item.attendeeId}: server state differs, accepting server state`);
-        await markSynced(item.id);
-        return true;
+      if (error) {
+        // Conflict — accept server state
+        if (error.message.includes('already')) {
+          logger.debug(`Conflict for ${item.attendeeId}: server state differs, accepting server state`);
+          await markSynced(item.id);
+          return true;
+        }
+
+        // Non-retryable errors (auth, permission)
+        if (error.message.includes('JWT') || error.message.includes('permission') || error.message.includes('unauthorized')) {
+          throw error;
+        }
+
+        // Retryable — throw to enter retry path
+        throw error;
       }
 
-      throw error;
-    }
+      await markSynced(item.id);
+      logger.debug(`Synced check-in for attendee ${item.attendeeId}`);
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-    await markSynced(item.id);
-    console.log(`Synced check-in for attendee ${item.attendeeId}`);
-    return true;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`Failed to sync check-in for ${item.attendeeId}:`, errorMessage);
-    await markFailed(item.id, errorMessage);
-    return false;
+      // Non-retryable errors
+      const isNonRetryable = errorMessage.includes('JWT') ||
+        errorMessage.includes('permission') ||
+        errorMessage.includes('unauthorized');
+
+      if (isNonRetryable || attempt >= MAX_SYNC_RETRIES) {
+        logger.error(`Failed to sync check-in for ${item.attendeeId}:`, errorMessage);
+        await markFailed(item.id, errorMessage);
+        return false;
+      }
+
+      // Wait before retry with exponential backoff
+      const delay = RETRY_DELAYS_MS[attempt] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1];
+      logger.debug(`Retrying sync for ${item.attendeeId} in ${delay}ms (attempt ${attempt + 1}/${MAX_SYNC_RETRIES})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
   }
+
+  // Should not reach here, but safety fallback
+  await markFailed(item.id, 'Max retries exceeded');
+  return false;
 }
 
 /**
@@ -117,14 +146,14 @@ export async function syncAllPending(): Promise<{
   total: number;
 }> {
   if (isSyncing) {
-    console.log('Sync already in progress, skipping');
+    logger.debug('Sync already in progress, skipping');
     return { success: false, synced: 0, failed: 0, total: 0 };
   }
 
   // Check network connectivity first
   const networkState = await Network.getNetworkStateAsync();
   if (!networkState.isConnected || !networkState.isInternetReachable) {
-    console.log('No network connectivity, skipping sync');
+    logger.debug('No network connectivity, skipping sync');
     return { success: false, synced: 0, failed: 0, total: 0 };
   }
 
@@ -135,7 +164,7 @@ export async function syncAllPending(): Promise<{
   const total = pending.length;
 
   if (total === 0) {
-    console.log('No pending operations to sync');
+    logger.debug('No pending operations to sync');
     isSyncing = false;
     lastSyncAt = Date.now();
     lastSyncResult = 'success';
@@ -143,7 +172,7 @@ export async function syncAllPending(): Promise<{
     return { success: true, synced: 0, failed: 0, total: 0 };
   }
 
-  console.log(`Starting sync of ${total} pending operations`);
+  logger.info(`Starting sync of ${total} pending operations`);
 
   let synced = 0;
   let failed = 0;
@@ -173,7 +202,7 @@ export async function syncAllPending(): Promise<{
   lastSyncAt = Date.now();
   isSyncing = false;
 
-  console.log(`Sync complete: ${synced} synced, ${failed} failed out of ${total}`);
+  logger.info(`Sync complete: ${synced} synced, ${failed} failed out of ${total}`);
 
   // Refresh attendee list after sync
   if (synced > 0) {
@@ -195,14 +224,17 @@ export async function syncAllPending(): Promise<{
  */
 async function handleNetworkChange(isConnected: boolean): Promise<void> {
   if (wasOffline && isConnected) {
-    console.log('Network reconnected, triggering sync');
+    logger.info('Network reconnected, triggering sync');
     // Small delay to ensure connection is stable
-    setTimeout(async () => {
+    await new Promise(resolve => setTimeout(resolve, RECONNECT_SYNC_DELAY_MS));
+    try {
       const result = await syncAllPending();
       if (result.synced > 0) {
-        console.log(`Auto-synced ${result.synced} check-ins on reconnect`);
+        logger.info(`Auto-synced ${result.synced} check-ins on reconnect`);
       }
-    }, 1000);
+    } catch (error) {
+      logger.error('Auto-sync on reconnect failed:', error);
+    }
   }
 
   wasOffline = !isConnected;
@@ -220,8 +252,10 @@ export async function initSyncManager(): Promise<() => void> {
   if (!wasOffline) {
     const stats = await getQueueStats();
     if (stats.pending > 0) {
-      console.log(`Found ${stats.pending} pending operations from previous session, syncing...`);
-      syncAllPending();
+      logger.info(`Found ${stats.pending} pending operations from previous session, syncing...`);
+      syncAllPending().catch(error => {
+        logger.error('Initial sync failed:', error);
+      });
     }
   }
 
@@ -234,14 +268,14 @@ export async function initSyncManager(): Promise<() => void> {
       const isConnected = state.isConnected && state.isInternetReachable;
 
       if (isConnected !== lastConnected) {
-        console.log(`Network state changed: ${isConnected ? 'online' : 'offline'}`);
+        logger.info(`Network state changed: ${isConnected ? 'online' : 'offline'}`);
         await handleNetworkChange(isConnected ?? false);
         lastConnected = isConnected ?? false;
       }
     } catch (error) {
-      console.error('Error polling network state:', error);
+      logger.error('Error polling network state:', error);
     }
-  }, 5000);
+  }, NETWORK_POLL_INTERVAL_MS);
 
   // Return cleanup function
   return () => {

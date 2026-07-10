@@ -8,6 +8,7 @@
  */
 import { getSupabaseClient } from './supabase';
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import { logger } from '../utils/logger';
 
 export type RealtimeSubscriptionOptions = {
   eventId: string;
@@ -52,13 +53,13 @@ class RealtimeManager {
           filter: `event_id=eq.${eventId}`,
         },
         (payload) => {
-          console.log('Real-time attendee change:', payload);
+          logger.debug('Real-time attendee change:', payload);
           onChange(payload);
         }
       )
       .subscribe((status) => {
-        console.log(`Real-time subscription status for ${channelName}:`, status);
-        
+        logger.debug(`Real-time subscription status for ${channelName}:`, status);
+
         const previousStatus = this.connectionStatus.get(channelName);
         const wasDisconnected = previousStatus && !previousStatus.isConnected;
         
@@ -67,12 +68,16 @@ class RealtimeManager {
 
         // Trigger onReconnected callback when connection is restored
         if (status === 'SUBSCRIBED' && wasDisconnected) {
-          console.log(`✅ Reconnected to ${channelName}, triggering data refresh`);
+          logger.info(`Reconnected to ${channelName}, triggering data refresh`);
           options.onReconnected?.();
         }
 
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          this.handleReconnection(channelName, options, onChange);
+          this.handleReconnection(
+            channelName,
+            { reconnectAttempts, reconnectDelay, onError },
+            () => this.subscribeToAttendees(options, onChange)
+          );
         }
       });
 
@@ -107,18 +112,22 @@ class RealtimeManager {
           filter: `org_id=eq.${orgId}`,
         },
         (payload) => {
-          console.log('Real-time event change:', payload);
+          logger.debug('Real-time event change:', payload);
           onChange(payload);
         }
       )
       .subscribe((status) => {
-        console.log(`Real-time subscription status for ${channelName}:`, status);
-        
+        logger.debug(`Real-time subscription status for ${channelName}:`, status);
+
         this.updateConnectionStatus(channelName, status);
         onStatusChange?.(status);
 
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          this.handleReconnection(channelName, { ...options, eventId: orgId }, onChange);
+          this.handleReconnection(
+            channelName,
+            { reconnectAttempts: options.reconnectAttempts, reconnectDelay: options.reconnectDelay, onError },
+            () => this.subscribeToEvents(options, onChange)
+          );
         }
       });
 
@@ -147,22 +156,23 @@ class RealtimeManager {
 
   private handleReconnection(
     channelName: string,
-    options: RealtimeSubscriptionOptions,
-    onChange: (change: RealtimePostgresChangesPayload<any>) => void
+    options: { reconnectAttempts?: number; reconnectDelay?: number; onError?: (error: Error) => void },
+    resubscribe: () => void
   ) {
     const current = this.connectionStatus.get(channelName);
     if (!current) return;
 
-    const { reconnectAttempts: maxAttempts, reconnectDelay } = options;
+    const maxAttempts = options.reconnectAttempts ?? 3;
+    const reconnectDelay = options.reconnectDelay ?? 2000;
     const attempts = current.reconnectAttempts + 1;
 
     if (attempts > maxAttempts) {
-      console.error(`Max reconnection attempts (${maxAttempts}) reached for ${channelName}`);
+      logger.error(`Max reconnection attempts (${maxAttempts}) reached for ${channelName}`);
       options.onError?.(new Error(`Failed to reconnect after ${maxAttempts} attempts`));
       return;
     }
 
-    console.log(`Attempting to reconnect ${channelName} (attempt ${attempts}/${maxAttempts})`);
+    logger.debug(`Attempting to reconnect ${channelName} (attempt ${attempts}/${maxAttempts})`);
 
     this.connectionStatus.set(channelName, {
       ...current,
@@ -175,11 +185,11 @@ class RealtimeManager {
       clearTimeout(existingTimeout);
     }
 
-    // Schedule reconnection
+    // Schedule reconnection with exponential backoff
     const timeout = setTimeout(() => {
       this.reconnectTimeouts.delete(channelName);
-      this.subscribeToAttendees(options, onChange);
-    }, reconnectDelay * attempts); // Exponential backoff
+      resubscribe();
+    }, reconnectDelay * Math.pow(2, attempts - 1));
 
     this.reconnectTimeouts.set(channelName, timeout);
   }
